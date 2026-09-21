@@ -1,36 +1,137 @@
 import SwiftUI
+import MouseCore
 
-/// Original vector artwork, rendered natively; no remote assets or vendor branding.
-struct MouseIllustration: View {
-    var body: some View {
-        ZStack {
-            Ellipse().fill(Color.mint.opacity(0.08)).frame(width: 165, height: 175).blur(radius: 22).offset(y: 30)
-            MouseBody().fill(LinearGradient(colors: [Color(white: 0.32), Color(white: 0.19), Color(white: 0.08)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .overlay(MouseBody().stroke(LinearGradient(colors: [.white.opacity(0.30), .white.opacity(0.03)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
-                .shadow(color: .black.opacity(0.45), radius: 16, x: 7, y: 15)
-            Path { p in p.move(to: CGPoint(x: 119, y: 23)); p.addCurve(to: CGPoint(x: 118, y: 127), control1: CGPoint(x: 111, y: 44), control2: CGPoint(x: 121, y: 108)) }.stroke(.black.opacity(0.5), lineWidth: 2)
-            Path { p in p.move(to: CGPoint(x: 57, y: 88)); p.addCurve(to: CGPoint(x: 160, y: 113), control1: CGPoint(x: 80, y: 107), control2: CGPoint(x: 124, y: 124)) }.stroke(.black.opacity(0.5), lineWidth: 1)
-            RoundedRectangle(cornerRadius: 8).fill(.black.opacity(0.5)).frame(width: 22, height: 44).offset(x: 14, y: -60)
-            RoundedRectangle(cornerRadius: 6).fill(LinearGradient(colors: [Color(white: 0.65), Color(white: 0.22), Color(white: 0.52)], startPoint: .leading, endPoint: .trailing)).frame(width: 14, height: 32).overlay(VStack(spacing: 3) { ForEach(0..<7) { _ in Rectangle().fill(.black.opacity(0.5)).frame(width: 12, height: 1) } }).offset(x: 14, y: -60)
-            Capsule().fill(.black.opacity(0.6)).frame(width: 10, height: 18).offset(x: 14, y: -20)
-            Capsule().fill(Color.mint.opacity(0.9)).frame(width: 3, height: 6).shadow(color: .mint.opacity(0.6), radius: 3).offset(x: -25, y: -59)
-            RoundedRectangle(cornerRadius: 4).fill(LinearGradient(colors: [Color(white: 0.5), Color(white: 0.16)], startPoint: .top, endPoint: .bottom)).frame(width: 12, height: 30).rotationEffect(.degrees(-18)).offset(x: -53, y: -26)
-            Capsule().fill(Color(white: 0.12)).frame(width: 24, height: 8).rotationEffect(.degrees(25)).offset(x: -52, y: 5)
-            Capsule().fill(Color(white: 0.12)).frame(width: 24, height: 8).rotationEffect(.degrees(25)).offset(x: -57, y: 20)
-            Text("MX").font(.system(size: 13, weight: .medium, design: .rounded)).foregroundStyle(.white.opacity(0.23)).rotationEffect(.degrees(4)).offset(x: 15, y: 47)
-        }.frame(width: 200, height: 230).rotationEffect(.degrees(-13))
+/// The same local product renders are used for the overview and button map.
+enum MouseArtwork {
+    static let manifest: MouseArtworkManifest? = decode("manifest.json")
+    static let metadata: MouseArtworkMetadata? = decode("core_metadata.json")
+    private static var images: [String: NSImage] = [:]
+
+    private static func decode<T: Decodable>(_ name: String) -> T? {
+        guard let url = Bundle.module.url(forResource: name, withExtension: nil, subdirectory: "DeviceImages"),
+              let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(T.self, from: data)
+    }
+    static func image(extendedModelID: UInt8?, buttons: Bool) -> NSImage? {
+        guard let name = manifest?.imageName(extendedModelID: extendedModelID, buttons: buttons) else { return nil }
+        if let image = images[name] { return image }
+        guard let url = Bundle.module.url(forResource: name, withExtension: nil, subdirectory: "DeviceImages"),
+              let image = NSImage(contentsOf: url) else { return nil }
+        images[name] = image
+        return image
     }
 }
-private struct MouseBody: Shape {
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        p.move(to: CGPoint(x: 101, y: 20))
-        p.addCurve(to: CGPoint(x: 162, y: 45), control1: CGPoint(x: 126, y: 12), control2: CGPoint(x: 157, y: 21))
-        p.addCurve(to: CGPoint(x: 175, y: 169), control1: CGPoint(x: 179, y: 79), control2: CGPoint(x: 183, y: 132))
-        p.addCurve(to: CGPoint(x: 120, y: 212), control1: CGPoint(x: 173, y: 200), control2: CGPoint(x: 150, y: 214))
-        p.addCurve(to: CGPoint(x: 39, y: 183), control1: CGPoint(x: 81, y: 211), control2: CGPoint(x: 40, y: 204))
-        p.addCurve(to: CGPoint(x: 48, y: 118), control1: CGPoint(x: 37, y: 162), control2: CGPoint(x: 49, y: 152))
-        p.addCurve(to: CGPoint(x: 101, y: 20), control1: CGPoint(x: 47, y: 62), control2: CGPoint(x: 67, y: 28))
-        p.closeSubpath(); return p
+
+struct MouseIllustration: View {
+    var extendedModelID: UInt8?
+    var buttons = false
+    var body: some View {
+        if let image = MouseArtwork.image(extendedModelID: extendedModelID, buttons: buttons) {
+            Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
+                .accessibilityLabel("MX Master 4")
+        } else {
+            Image(systemName: "computermouse").resizable().scaledToFit().foregroundStyle(.secondary)
+                .accessibilityLabel("MX Master 4: изображение недоступно")
+        }
+    }
+}
+
+struct MouseButtonMap: View {
+    let controls: [MouseControl]
+    let extendedModelID: UInt8?
+    @Binding var selectedID: UInt16?
+    private let blue = Color(red: 0.32, green: 0.61, blue: 1)
+
+    var body: some View {
+        GeometryReader { geometry in
+            if let image = MouseArtwork.image(extendedModelID: extendedModelID, buttons: true) {
+                let scale = min(geometry.size.width / image.size.width, geometry.size.height / image.size.height)
+                let width = image.size.width * scale
+                let height = image.size.height * scale
+                ZStack(alignment: .topLeading) {
+                    Image(nsImage: image).resizable().interpolation(.high).frame(width: width, height: height)
+                        .accessibilityHidden(true)
+                    ForEach(controls) { control in
+                        if let point = MouseArtwork.metadata?.buttons?.normalizedPoint(for: control.id, pngWidth: image.size.width) {
+                            Button { selectedID = control.id } label: {
+                                Circle().fill(blue.opacity(selectedID == control.id ? 0.3 : 0.14)).frame(width: 32, height: 32)
+                                    .overlay(Circle().fill(selectedID == control.id ? .white : blue).frame(width: 13, height: 13)
+                                        .overlay(Circle().stroke(Color.black.opacity(0.85), lineWidth: 2)))
+                                    .overlay(Circle().stroke(blue.opacity(selectedID == control.id ? 1 : 0), lineWidth: 2))
+                                    .contentShape(Circle())
+                            }.buttonStyle(.plain)
+                                .position(x: point.x * width, y: point.y * height)
+                                .help(control.name)
+                                .accessibilityLabel(control.name)
+                                .accessibilityValue(selectedID == control.id ? "Выбрана" : "")
+                        }
+                    }
+                }.frame(width: width, height: height)
+                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+            } else {
+                MouseIllustration(extendedModelID: extendedModelID, buttons: true)
+            }
+        }
+    }
+}
+
+struct ButtonAssignmentsView: View {
+    let controls: [MouseControl]
+    let extendedModelID: UInt8?
+    @Binding var assignments: [String: MouseAction]
+    let changed: () -> Void
+    let testAction: (MouseAction) -> Void
+    @ViewState<UInt16?> private var selectedID: UInt16? = nil
+    private let blue = Color(red: 0.32, green: 0.61, blue: 1)
+    private var selected: MouseControl? { controls.first { $0.id == selectedID } ?? controls.first }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 26) {
+            VStack(spacing: 14) {
+                MouseButtonMap(controls: controls, extendedModelID: extendedModelID,
+                               selectedID: Binding(get: { selected?.id }, set: { selectedID = $0 }))
+                    .frame(width: 280, height: 438)
+                Text("Нажмите на точку на мыши").font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            VStack(alignment: .leading, spacing: 18) {
+                if let selected {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("НАЗНАЧЕНИЕ КНОПКИ").font(.system(size: 9, weight: .semibold)).tracking(1.3).foregroundStyle(blue)
+                        Text(selected.name).font(.system(size: 20, weight: .semibold))
+                        Picker("Действие", selection: Binding(get: { assignments[String(selected.id)] ?? .system }, set: {
+                            assignments[String(selected.id)] = $0; changed()
+                        })) {
+                            ForEach(MouseAction.allCases.filter { $0 != .gestures || selected.rawXY }) { action in
+                                Text(action.title).tag(action)
+                            }
+                        }.labelsHidden().frame(maxWidth: .infinity)
+                        let action = assignments[String(selected.id)] ?? .system
+                        if action != .system && action != .none {
+                            Button("Проверить действие", systemImage: "play") { testAction(action) }
+                                .buttonStyle(.bordered).controlSize(.small)
+                        }
+                    }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                        .background(blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                    VStack(spacing: 2) {
+                        ForEach(controls) { control in
+                            let action = assignments[String(control.id)] ?? .system
+                            Button { selectedID = control.id } label: {
+                                HStack(spacing: 10) {
+                                    Circle().fill(selected.id == control.id ? blue : .white.opacity(0.18)).frame(width: 6, height: 6)
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(control.name).font(.system(size: 12, weight: .medium)).foregroundStyle(.primary)
+                                        Text(action.title).font(.system(size: 11)).foregroundStyle(.secondary)
+                                    }
+                                    Spacer(minLength: 0)
+                                    Image(systemName: action.symbol).font(.system(size: 13)).foregroundStyle(.secondary)
+                                }.padding(.horizontal, 10).padding(.vertical, 8).frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(selected.id == control.id ? .white.opacity(0.05) : .clear, in: RoundedRectangle(cornerRadius: 9))
+                                    .contentShape(Rectangle())
+                            }.buttonStyle(.plain)
+                        }
+                    }
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }

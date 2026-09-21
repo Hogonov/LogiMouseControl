@@ -125,7 +125,7 @@ struct MainView: View {
                     Text(model.status).font(.system(size: 11)).foregroundStyle(accent.opacity(0.85))
                 }.padding(.leading, 26).padding(.vertical, 26)
                 Spacer(minLength: 0)
-                MouseIllustration().frame(width: 220, height: 250).padding(.trailing, 12).accessibilityLabel("Иллюстрация MX Master 4")
+                MouseIllustration(extendedModelID: model.device.extendedModelID).padding(.vertical, 15).frame(width: 220, height: 250).padding(.trailing, 12).accessibilityLabel("Иллюстрация MX Master 4")
             }.frame(maxWidth: .infinity).background(LinearGradient(colors: [surface, Color(red: 0.11, green: 0.16, blue: 0.14)], startPoint: .leading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 20)).overlay(RoundedRectangle(cornerRadius: 20).stroke(.white.opacity(0.07)))
             HStack(spacing: 14) {
                 overviewTile("Плавная прокрутка", value: model.preferences.scroll.smooth ? "Включена в настройках" : "Без сглаживания", symbol: "water.waves", target: .scroll)
@@ -156,21 +156,14 @@ struct MainView: View {
     private var buttons: some View {
         VStack(alignment: .leading, spacing: 18) {
             if model.device.controls.isEmpty { Notice(icon: "computermouse", title: "Кнопки появятся после подключения", text: "Список считывается с MX Master 4, включая отдельную тактильную панель.") }
-            Card {
-                VStack(spacing: 0) {
-                    ForEach(model.device.controls) { control in
-                        HStack {
-                            Text(control.name).font(.system(size: 13))
-                            Spacer()
-                            Picker(control.name, selection: Binding(get: { model.preferences.buttons[String(control.id)] ?? .system }, set: { model.preferences.buttons[String(control.id)] = $0; model.preferencesChanged() })) {
-                                ForEach(MouseAction.allCases.filter { $0 != .gestures || control.rawXY }) { action in Text(action.title).tag(action) }
-                            }.labelsHidden().frame(width: 200)
-                        }.padding(.vertical, 12)
-                        if control.id != model.device.controls.last?.id { Divider() }
-                    }
+            if !model.device.controls.isEmpty {
+                Card {
+                    ButtonAssignmentsView(controls: model.device.controls, extendedModelID: model.device.extendedModelID,
+                                          assignments: $model.preferences.buttons, changed: model.preferencesChanged,
+                                          testAction: model.testAction)
                 }
             }
-            Notice(icon: "hand.draw", title: "Жесты: удерживайте кнопку и двигайте мышь", text: "Влево / вправо — рабочие столы. Вверх — Mission Control. Вниз — окна приложения. Нажатие без движения — Mission Control. Используются ваши системные сочетания клавиш.")
+            Notice(icon: "hand.draw", title: "Жесты: удерживайте кнопку и двигайте мышь", text: "Влево / вправо — рабочие столы. Вверх — Mission Control. Вниз — окна приложения. Нажатие без движения — Mission Control. Для переключения рабочих столов и окон приложения используются ваши системные сочетания клавиш.")
         }
     }
     private var ring: some View {

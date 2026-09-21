@@ -1,0 +1,62 @@
+{
+  "source": "https://assets.openlogi.org/v1/devices/mx_master_4/",
+  "retrieved": "2026-09-21",
+  "files": [
+    {
+      "name": "core_metadata.json",
+      "sha256": "e429a0791fed04d12d591a46e82ee6544cd144bc283ff96af02ad1805140cf60"
+    },
+    {
+      "name": "front_core.png",
+      "sha256": "ff751f6b58c0ce067b4212ed1c2ffeafbc1211474848845da92c3a795a1fda19"
+    },
+    {
+      "name": "front_ext_1.png",
+      "sha256": "5116437f735d42f22922439e172b6b9e72f094babad72446e83b4e9ca9163999"
+    },
+    {
+      "name": "front_ext_2.png",
+      "sha256": "37a31334c07598653c22293387ad88fa7fa49b5b4534d24f8784b2e67d027057"
+    },
+    {
+      "name": "front_ext_3.png",
+      "sha256": "530dcaae6b26fe4424c621518acaa709e25c2f9952ab6416e498586b9e63daea"
+    },
+    {
+      "name": "front_ext_4.png",
+      "sha256": "bce61f2752c0606c0ded9bcf6dd9d679c4a33ce6630c465597c6266c9c019089"
+    },
+    {
+      "name": "front_ext_5.png",
+      "sha256": "b910010407ba1bd2f53d3d9a727d6e5f8df1dfce5c16a643fadaf1e516cfe265"
+    },
+    {
+      "name": "manifest.json",
+      "sha256": "f02cc6f5ec804f194918426b197f88ef84cc65f5faf70ac464a0bead0c32efc0"
+    },
+    {
+      "name": "side_core.png",
+      "sha256": "7426a1c557f7e4e8cdab147b47d8f16421f40601fbbfe8a28438c6cb99616ba4"
+    },
+    {
+      "name": "side_ext_1.png",
+      "sha256": "75800339703ac097f4e1120c2ab70d568dd89bc12940a6344f74cb4450d271b4"
+    },
+    {
+      "name": "side_ext_2.png",
+      "sha256": "a21e091bad62493392fae257b79abfe0787f172d5c6ac79fc84d92936b49c12d"
+    },
+    {
+      "name": "side_ext_3.png",
+      "sha256": "96587424d0b15190cc231a70ba9b1cd1d1aa34912a6162cc46ec580c5de06cd4"
+    },
+    {
+      "name": "side_ext_4.png",
+      "sha256": "4c36b4f2e348e376ae3cb84093e89e590ddd1c8cb9a3a3de1745904566b8cf2e"
+    },
+    {
+      "name": "side_ext_5.png",
+      "sha256": "a4d76b0e3a2894ab0a44be9b4896ee753a0e8abdca6a34718fb87d3c3ef8dbbe"
+    }
+  ]
+}

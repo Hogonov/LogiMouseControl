@@ -12,6 +12,8 @@ cp "$bin_dir/LogiMouseControl" "$app/Contents/MacOS/LogiMouseControl"
 cp Resources/Info.plist "$app/Contents/Info.plist"
 cp THIRD_PARTY_NOTICES.md "$app/Contents/Resources/"
 cp Resources/AppIcon.icns "$app/Contents/Resources/"
+# SwiftPM's module bundle must travel with the standalone .app.
+ditto "$bin_dir/LogiMouseControl_LogiMouseControl.bundle" "$app/Contents/Resources/LogiMouseControl_LogiMouseControl.bundle"
 codesign --force --sign - --identifier local.alexandr.LogiMouseControl "$app"
 codesign --verify --strict "$app"
 printf '%s\n' "$app"

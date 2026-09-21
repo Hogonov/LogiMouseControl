@@ -6,7 +6,8 @@ https://github.com/AprilNEA/OpenLogi
 Reference revision: a92aa43bed3732be5f7fde7aed2fc12cc48ba001.
 
 HID++ feature layouts, control IDs, SmartShift semantics, and haptic commands
-were adapted to Swift from OpenLogi and its openlogi-hidpp crate. This app does
+were adapted to Swift from OpenLogi and its openlogi-hidpp crate. Device colour
+selection and image-hotspot coordinate conventions also follow OpenLogi. This app does
 not embed OpenLogi, its UI, updater, or network services.
 
 OpenLogi is offered under MIT or Apache-2.0. The MIT option is used here:
@@ -60,6 +61,19 @@ Its source is under the custom MMF License. No MMF source files, assets,
 algorithms, private API bridges, monetization or update components are copied
 into this application. The time-based exponential scroll integrator is an
 independent implementation using public CoreGraphics events.
+
+## MX Master 4 product images and metadata
+
+The product renders (`front_*.png`, `side_*.png`), `manifest.json`, and
+`core_metadata.json` in `Sources/LogiMouseControl/DeviceImages` were obtained from:
+https://assets.openlogi.org/v1/devices/mx_master_4/
+
+These are Logitech product assets mirrored by the OpenLogi asset service, not
+original artwork of this project. The OpenLogi source-code MIT license above
+is not a license grant for Logitech's product artwork or trademarks.
+Only the front/side renders and their catalog/marker metadata are bundled;
+no OpenLogi brand artwork is included. Source SHA-256 hashes are recorded in
+`Resources/DeviceImagesProvenance.json`.
 
 ## Trademarks
 

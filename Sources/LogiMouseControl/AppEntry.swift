@@ -3,7 +3,12 @@ import MouseCore
 
 @main
 struct AppEntry {
-    static func main() {
+    @MainActor static func main() {
+        if let index = CommandLine.arguments.firstIndex(of: "--render-artwork-preview"), CommandLine.arguments.count > index + 1 {
+            do { try renderArtworkPreview(to: URL(fileURLWithPath: CommandLine.arguments[index + 1])) }
+            catch { print("Не удалось создать предпросмотр: \(error.localizedDescription)"); exit(1) }
+            return
+        }
         if CommandLine.arguments.contains("--recover-on-exit") { CaptureGuardian.run(); return }
         if CommandLine.arguments.contains("--diagnose") { diagnose(); return }
         LogiMouseControlApp.main()
@@ -17,6 +22,7 @@ struct AppEntry {
             let report: [String: Any] = [
                 "model": "MX Master 4", "transport": "Bluetooth", "connected": true,
                 "features": state.features.keys.sorted().map { String(format: "%04X", $0) },
+                "extendedModelID": state.extendedModelID as Any? ?? NSNull(),
                 "battery": state.battery as Any? ?? NSNull(), "dpi": state.dpi as Any? ?? NSNull(),
                 "dpiValues": state.dpiValues, "wheel": state.wheelMode?.rawValue as Any? ?? NSNull(),
                 "threshold": state.threshold, "torque": state.torque as Any? ?? NSNull(),

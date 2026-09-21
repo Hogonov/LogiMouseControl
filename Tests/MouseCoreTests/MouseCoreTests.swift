@@ -2,6 +2,48 @@ import Foundation
 import MouseCore
 
 final class MouseCoreTests {
+    private var artworkDirectory: URL {
+        URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/LogiMouseControl/DeviceImages")
+    }
+    func testDeviceColourUsesExtendedModelByteAndRejectsTruncation() throws {
+        var payload = [UInt8](repeating: 0, count: 16)
+        payload[7] = 0xb0; payload[8] = 0x42; payload[13] = 1; payload[14] = 5
+        XCTAssertEqual(try MouseIdentity.extendedModelID(from: payload), 1)
+        do {
+            _ = try MouseIdentity.extendedModelID(from: Array(payload.prefix(13)))
+            XCTFail("Truncated identity accepted")
+        } catch HIDFailure.malformed {} catch { XCTFail("Unexpected error") }
+    }
+    func testCatalogSelectsWhiteAndAllVariantImagesExist() throws {
+        let manifest = try JSONDecoder().decode(MouseArtworkManifest.self, from: Data(contentsOf: artworkDirectory.appendingPathComponent("manifest.json")))
+        XCTAssertEqual(manifest.imageName(extendedModelID: 1, buttons: true), "side_ext_1.png")
+        XCTAssertEqual(manifest.imageName(extendedModelID: 1, buttons: false), "front_ext_1.png")
+        XCTAssertEqual(manifest.imageName(extendedModelID: nil, buttons: true), "side_ext_1.png")
+        XCTAssertEqual(manifest.imageName(extendedModelID: 255, buttons: true), "side_core.png")
+        for ext: UInt8 in 0...5 {
+            for buttons in [false, true] {
+                let name = try XCTUnwrap(manifest.imageName(extendedModelID: ext, buttons: buttons))
+                let data = try Data(contentsOf: artworkDirectory.appendingPathComponent(name))
+                XCTAssertEqual(Array(data.prefix(8)), [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+            }
+        }
+    }
+    func testButtonHotspotsAccountForImagePaddingAndKeepHapticPanelDistinct() throws {
+        let metadata = try JSONDecoder().decode(MouseArtworkMetadata.self, from: Data(contentsOf: artworkDirectory.appendingPathComponent("core_metadata.json")))
+        let buttons = try XCTUnwrap(metadata.buttons)
+        let ids = Set(buttons.assignments?.compactMap(\.controlID) ?? [])
+        XCTAssertEqual(ids, Set<UInt16>([0x52, 0xc4, 0x56, 0x53, 0xc3, 0x1a0]))
+        let middle = try XCTUnwrap(buttons.normalizedPoint(for: 0x52, pngWidth: 656))
+        XCTAssertLessThan(abs(middle.x - (10 + 0.755 * 636) / 656), 0.00001)
+        XCTAssertEqual(middle.y, 0.19)
+        let gesture = try XCTUnwrap(buttons.normalizedPoint(for: 0xc3, pngWidth: 656))
+        let panel = try XCTUnwrap(buttons.normalizedPoint(for: 0x1a0, pngWidth: 656))
+        XCTAssertLessThan(gesture.y, panel.y)
+        XCTAssertNil(buttons.normalizedPoint(for: 0x50, pngWidth: 656))
+        XCTAssertNil(buttons.normalizedPoint(for: 0x999, pngWidth: 656))
+        XCTAssertNil(buttons.normalizedPoint(for: 0x52, pngWidth: 0))
+    }
     func testLongReportRoundTripAndPadding() throws {
         let packet = HIDPacket(feature: 4, function: 3, softwareID: 7, payload: [0, 0x1f, 0x40])
         XCTAssertEqual(packet.bytes.count, 20)
@@ -143,6 +185,9 @@ private func XCTUnwrap<T>(_ value: T?) throws -> T { guard let value else { thro
         suite.testOrdinaryButtonDoesNotReceiveUnsupportedRawFlags(); print("PASS testOrdinaryButtonDoesNotReceiveUnsupportedRawFlags")
         suite.testGestureFlagsNeverEnableAnalyticsOrPersistentCapture(); print("PASS testGestureFlagsNeverEnableAnalyticsOrPersistentCapture")
         suite.testRestoreReleasesAllSupportedDiversionFlagsAndKeepsRemap(); print("PASS testRestoreReleasesAllSupportedDiversionFlagsAndKeepsRemap")
-        print("18 checks passed")
+        try suite.testDeviceColourUsesExtendedModelByteAndRejectsTruncation(); print("PASS testDeviceColourUsesExtendedModelByteAndRejectsTruncation")
+        try suite.testCatalogSelectsWhiteAndAllVariantImagesExist(); print("PASS testCatalogSelectsWhiteAndAllVariantImagesExist")
+        try suite.testButtonHotspotsAccountForImagePaddingAndKeepHapticPanelDistinct(); print("PASS testButtonHotspotsAccountForImagePaddingAndKeepHapticPanelDistinct")
+        print("21 checks passed")
     }
 }

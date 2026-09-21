@@ -4,16 +4,17 @@ import MouseCore
 
 final class ActionExecutor {
     var showRing: (() -> Void)?
+    var onError: ((String) -> Void)?
     func execute(_ action: MouseAction) {
-        guard AXIsProcessTrusted() else { return }
+        guard AXIsProcessTrusted() else { onError?("Разрешите Универсальный доступ для выполнения действий мыши."); return }
         switch action {
         case .system, .none: break
         case .ring: showRing?()
-        case .gestures, .missionControl: symbolic(32, fallback: (126, .maskControl))
+        case .gestures, .missionControl: openSystemApplication("/System/Applications/Mission Control.app", name: "Mission Control")
         case .appExpose: symbolic(33, fallback: (125, .maskControl))
         case .desktop: symbolic(36, fallback: (103, []))
         case .launchpad: NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Launchpad.app"))
-        case .spotlight: symbolic(64, fallback: (49, .maskCommand))
+        case .spotlight: openSystemApplication("/System/Library/CoreServices/Spotlight.app", name: "Spotlight")
         case .back: key(33, .maskCommand)
         case .forward: key(30, .maskCommand)
         case .copy: key(8, .maskCommand)
@@ -36,6 +37,16 @@ final class ActionExecutor {
         case "up": execute(.missionControl)
         case "down": execute(.appExpose)
         default: execute(.missionControl)
+        }
+    }
+    // Open the system app even when its keyboard shortcut is disabled or remapped.
+    // Reopen events also reach an already-running instance (not just activation).
+    private func openSystemApplication(_ path: String, name: String) {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: configuration) { [weak self] _, error in
+            guard let error else { return }
+            DispatchQueue.main.async { self?.onError?("Не удалось открыть \(name): \(error.localizedDescription)") }
         }
     }
     private func symbolic(_ id: Int, fallback: (CGKeyCode, CGEventFlags)) {

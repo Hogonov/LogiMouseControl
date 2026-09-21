@@ -17,6 +17,7 @@ struct MouseControl: Identifiable {
 }
 struct DeviceSnapshot {
     var connected = false
+    var extendedModelID: UInt8?
     var features: [UInt16: UInt8] = [:]
     var battery: Int?
     var charging = false
@@ -86,7 +87,7 @@ final class DeviceService {
             if discover || !self.snapshot.connected {
                 self.snapshot = DeviceSnapshot()
                 // Long-report root feature lookups also prove the protocol endpoint is alive.
-                for id: UInt16 in [0x2201, 0x2111, 0x2110, 0x2121, 0x2150, 0x1004, 0x19b0, 0x1b04, 0x1814] {
+                for id: UInt16 in [0x0003, 0x2201, 0x2111, 0x2110, 0x2121, 0x2150, 0x1004, 0x19b0, 0x1b04, 0x1814] {
                     let p = try self.transport.request(feature: 0, function: 0, payload: splitWord(id) + [0])
                     guard !p.isEmpty else { throw HIDFailure.malformed }
                     if p[0] != 0 { self.snapshot.features[id] = p[0] }
@@ -114,6 +115,11 @@ final class DeviceService {
                 }
             }
             self.snapshot.warnings = []
+            if self.snapshot.features[0x0003] != nil {
+                self.readOptional("Цвет корпуса") {
+                    self.snapshot.extendedModelID = try MouseIdentity.extendedModelID(from: self.call(0x0003, 0))
+                }
+            }
             self.readOptional("DPI") { try self.readDPI() }
             self.readOptional("MagSpeed") { try self.readWheel() }
             self.readOptional("Виброотклик") { try self.readHaptics() }

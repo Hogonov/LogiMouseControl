@@ -55,6 +55,7 @@ final class AppModel: ObservableObject {
         service.onConnected = { [weak self] in self?.didConnect() }
         service.onEvent = { [weak self] in self?.handle($0) }
         scroll.onFailure = { [weak self] in self?.pause() }
+        executor.onError = { [weak self] in self?.error = $0 }
         executor.showRing = { [weak self] in self?.showRing() }
         frontmostID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""
         let center = NSWorkspace.shared.notificationCenter
@@ -215,6 +216,7 @@ final class AppModel: ObservableObject {
             if SMAppService.mainApp.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
         } catch { self.error = "Не удалось изменить запуск при входе: \(error.localizedDescription)" }
     }
+    func testAction(_ action: MouseAction) { executor.execute(action) }
     func addProfile() {
         let panel = NSOpenPanel(); panel.allowedContentTypes = [.application]; panel.directoryURL = URL(fileURLWithPath: "/Applications")
         panel.canChooseDirectories = false; panel.allowsMultipleSelection = false; panel.prompt = "Добавить профиль"
