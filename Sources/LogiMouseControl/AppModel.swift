@@ -251,6 +251,7 @@ final class AppModel: ObservableObject {
     }
     func shutdown(_ completion: @escaping () -> Void) {
         shuttingDown = true; active = false; monitor?.invalidate(); scroll.stop(); ring.close()
+        executor.cancelPendingActions()
         service.release { [weak self] success in
             guard let self else { completion(); return }
             self.service.finishGuardian(clean: success) { self.service.transport.stop(); completion() }

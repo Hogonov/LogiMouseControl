@@ -3,6 +3,7 @@ import Carbon.HIToolbox
 import MouseCore
 
 final class ActionExecutor {
+    private let spotlight = SpotlightShortcut()
     var showRing: (() -> Void)?
     var onError: ((String) -> Void)?
     func execute(_ action: MouseAction) {
@@ -14,7 +15,7 @@ final class ActionExecutor {
         case .appExpose: symbolic(33, fallback: (125, .maskControl))
         case .desktop: symbolic(36, fallback: (103, []))
         case .launchpad: NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Launchpad.app"))
-        case .spotlight: openSystemApplication("/System/Library/CoreServices/Spotlight.app", name: "Spotlight")
+        case .spotlight: spotlight.perform { [weak self] in self?.onError?($0) }
         case .back: key(33, .maskCommand)
         case .forward: key(30, .maskCommand)
         case .copy: key(8, .maskCommand)
@@ -29,6 +30,9 @@ final class ActionExecutor {
         case .nextTrack: media(17)
         case .previousTrack: media(18)
         }
+    }
+    func cancelPendingActions() {
+        spotlight.cancelPendingRestore { [weak self] in self?.onError?($0) }
     }
     func gesture(_ direction: String?) {
         switch direction {

@@ -7,7 +7,10 @@ Reference revision: a92aa43bed3732be5f7fde7aed2fc12cc48ba001.
 
 HID++ feature layouts, control IDs, SmartShift semantics, and haptic commands
 were adapted to Swift from OpenLogi and its openlogi-hidpp crate. Device colour
-selection and image-hotspot coordinate conventions also follow OpenLogi. This app does
+selection and image-hotspot coordinate conventions also follow OpenLogi.
+The dynamically resolved CGS symbolic-hotkey API/signatures used for Spotlight
+follow `crates/openlogi-inject/src/inject/macos/symbolic_hotkey.rs`; event delivery
+and delayed restoration are implemented in Swift. This app does
 not embed OpenLogi, its UI, updater, or network services.
 
 OpenLogi is offered under MIT or Apache-2.0. The MIT option is used here:
