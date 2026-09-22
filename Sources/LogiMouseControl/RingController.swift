@@ -48,7 +48,7 @@ struct ActionRingView: View {
             ForEach(Array(actions.enumerated()), id: \.offset) { index, action in
                 let angle = Double(index) * .pi / 3 - .pi / 2
                 Button { select(action) } label: {
-                    VStack(spacing: 8) { Image(systemName: action.symbol).font(.system(size: 23, weight: .medium)); Text(action.title).font(.system(size: 10, weight: .medium)).lineLimit(2).multilineTextAlignment(.center) }
+                    VStack(spacing: 8) { RingActionIcon(action: action, size: 23); Text(action.title).font(.system(size: 10, weight: .medium)).lineLimit(2).multilineTextAlignment(.center) }
                         .frame(width: 82, height: 76).foregroundStyle(hovered == index ? Color.black : Color.primary)
                         .background(hovered == index ? Color.mint : .clear, in: RoundedRectangle(cornerRadius: 21))
                 }.buttonStyle(.plain).offset(x: cos(angle) * 112, y: sin(angle) * 112)

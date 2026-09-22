@@ -193,7 +193,11 @@ struct MainView: View {
                                     Button { model.preferences.ring[index] = .mouse(action); model.save() } label: { Label(action.title, systemImage: action.symbol) }
                                 }
                             } label: {
-                                Label(model.preferences.ring[index].title, systemImage: model.preferences.ring[index].symbol).lineLimit(1)
+                                Label {
+                                    Text(model.preferences.ring[index].title).lineLimit(1)
+                                } icon: {
+                                    RingActionIcon(action: model.preferences.ring[index], size: 18)
+                                }
                             }.frame(width: 190, alignment: .trailing)
                             Button("Приложение…", systemImage: "app.badge.plus") { model.chooseRingApplication(at: index) }
                                 .buttonStyle(.bordered)

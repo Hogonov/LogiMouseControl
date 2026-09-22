@@ -60,9 +60,7 @@ final class ActionExecutor {
         }
     }
     private func openApplication(_ application: RingApplication) {
-        let savedURL = URL(fileURLWithPath: application.path)
-        let resolvedURL = application.bundleIdentifier.flatMap { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }
-        guard let url = resolvedURL ?? (FileManager.default.fileExists(atPath: savedURL.path) ? savedURL : nil) else {
+        guard let url = application.resolvedURL else {
             onError?("Приложение \(application.name) не найдено. Выберите его заново в настройках кольца.")
             return
         }
