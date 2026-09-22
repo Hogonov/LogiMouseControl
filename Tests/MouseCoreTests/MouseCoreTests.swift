@@ -141,11 +141,24 @@ final class MouseCoreTests {
         XCTAssertEqual(button.direction, "down")
     }
     func testCorruptPreferencesAreClampedAndRingIsRepaired() {
-        var p = Preferences(); p.scroll.speed = .infinity; p.scroll.smoothness = -2; p.ring = [.ring]
+        var p = Preferences(); p.scroll.speed = .infinity; p.scroll.smoothness = -2; p.ring = [.mouse(.ring)]
         p.desiredDPI = 999999; p.desiredThreshold = 0; p.desiredIntensity = -1; p.sanitize()
         XCTAssertEqual(p.scroll.speed, 1); XCTAssertEqual(p.scroll.smoothness, 0.015)
-        XCTAssertEqual(p.ring.count, 6); XCTAssertFalse(p.ring.contains(.ring))
+        XCTAssertEqual(p.ring.count, 6); XCTAssertFalse(p.ring.contains(.mouse(.ring)))
         XCTAssertEqual(p.desiredDPI, 8000); XCTAssertEqual(p.desiredThreshold, 1); XCTAssertEqual(p.desiredIntensity, 0)
+    }
+    func testRingSupportsApplicationsAndLegacyActions() throws {
+        let legacy = Data("\"missionControl\"".utf8)
+        XCTAssertEqual(try JSONDecoder().decode(RingAction.self, from: legacy), .mouse(.missionControl))
+
+        let application = RingApplication(bundleIdentifier: "com.example.Editor", name: "Editor", path: "/Applications/Editor.app")
+        let action = RingAction.application(application)
+        XCTAssertEqual(try JSONDecoder().decode(RingAction.self, from: JSONEncoder().encode(action)), action)
+
+        var preferences = Preferences()
+        preferences.ring[0] = action
+        let restored = try JSONDecoder().decode(Preferences.self, from: JSONEncoder().encode(preferences))
+        XCTAssertEqual(restored.ring, preferences.ring)
     }
     func testSettingsRoundTripIncludesApplicationProfiles() throws {
         var p = Preferences(); p.buttons["416"] = .ring
@@ -179,6 +192,7 @@ private func XCTUnwrap<T>(_ value: T?) throws -> T { guard let value else { thro
         suite.testSmartShiftUses255ToDisableAutomaticRelease(); print("PASS testSmartShiftUses255ToDisableAutomaticRelease")
         suite.testHapticPanelDiscardsInitialPositionJump(); print("PASS testHapticPanelDiscardsInitialPositionJump")
         suite.testCorruptPreferencesAreClampedAndRingIsRepaired(); print("PASS testCorruptPreferencesAreClampedAndRingIsRepaired")
+        try suite.testRingSupportsApplicationsAndLegacyActions(); print("PASS testRingSupportsApplicationsAndLegacyActions")
         try suite.testSettingsRoundTripIncludesApplicationProfiles(); print("PASS testSettingsRoundTripIncludesApplicationProfiles")
         suite.testUnsmoothedModeHasNoInertialTail(); print("PASS testUnsmoothedModeHasNoInertialTail")
         suite.testUnsmoothedModeRetainsSubpixelMovement(); print("PASS testUnsmoothedModeRetainsSubpixelMovement")
@@ -188,6 +202,6 @@ private func XCTUnwrap<T>(_ value: T?) throws -> T { guard let value else { thro
         try suite.testDeviceColourUsesExtendedModelByteAndRejectsTruncation(); print("PASS testDeviceColourUsesExtendedModelByteAndRejectsTruncation")
         try suite.testCatalogSelectsWhiteAndAllVariantImagesExist(); print("PASS testCatalogSelectsWhiteAndAllVariantImagesExist")
         try suite.testButtonHotspotsAccountForImagePaddingAndKeepHapticPanelDistinct(); print("PASS testButtonHotspotsAccountForImagePaddingAndKeepHapticPanelDistinct")
-        print("21 checks passed")
+        print("22 checks passed")
     }
 }

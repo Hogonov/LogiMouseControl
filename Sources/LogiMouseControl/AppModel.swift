@@ -217,6 +217,18 @@ final class AppModel: ObservableObject {
         } catch { self.error = "Не удалось изменить запуск при входе: \(error.localizedDescription)" }
     }
     func testAction(_ action: MouseAction) { executor.execute(action) }
+    func chooseRingApplication(at index: Int) {
+        guard preferences.ring.indices.contains(index) else { return }
+        let panel = NSOpenPanel(); panel.allowedContentTypes = [.application]; panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.canChooseDirectories = false; panel.allowsMultipleSelection = false; panel.prompt = "Добавить в кольцо"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let bundle = Bundle(url: url)
+        let name = (bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
+            ?? (bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String)
+            ?? url.deletingPathExtension().lastPathComponent
+        preferences.ring[index] = .application(RingApplication(bundleIdentifier: bundle?.bundleIdentifier, name: name, path: url.standardizedFileURL.path))
+        save()
+    }
     func addProfile() {
         let panel = NSOpenPanel(); panel.allowedContentTypes = [.application]; panel.directoryURL = URL(fileURLWithPath: "/Applications")
         panel.canChooseDirectories = false; panel.allowsMultipleSelection = false; panel.prompt = "Добавить профиль"

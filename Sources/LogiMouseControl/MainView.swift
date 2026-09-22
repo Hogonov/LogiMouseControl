@@ -179,9 +179,25 @@ struct MainView: View {
                 }
             }
             Card {
-                VStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Настройка позиций").font(.system(size: 15, weight: .medium))
+                        Text("Выберите обычное действие или назначьте отдельное приложение для каждой позиции.").font(.system(size: 11)).foregroundStyle(.secondary)
+                    }.padding(.bottom, 2)
                     ForEach(0..<6) { index in
-                        HStack { Text("Позиция \(index + 1)").foregroundStyle(.secondary); Spacer(); Picker("Позиция \(index + 1)", selection: Binding(get: { model.preferences.ring[index] }, set: { model.preferences.ring[index] = $0; model.save() })) { ForEach(MouseAction.ringChoices) { action in Label(action.title, systemImage: action.symbol).tag(action) } }.labelsHidden().frame(width: 230) }
+                        HStack {
+                            Text("Позиция \(index + 1)").foregroundStyle(.secondary)
+                            Spacer()
+                            Menu {
+                                ForEach(MouseAction.ringChoices) { action in
+                                    Button { model.preferences.ring[index] = .mouse(action); model.save() } label: { Label(action.title, systemImage: action.symbol) }
+                                }
+                            } label: {
+                                Label(model.preferences.ring[index].title, systemImage: model.preferences.ring[index].symbol).lineLimit(1)
+                            }.frame(width: 190, alignment: .trailing)
+                            Button("Приложение…", systemImage: "app.badge.plus") { model.chooseRingApplication(at: index) }
+                                .buttonStyle(.bordered)
+                        }
                     }
                 }
             }

@@ -26,6 +26,62 @@ public enum MouseAction: String, Codable, CaseIterable, Identifiable {
     }
     public static var ringChoices: [Self] { allCases.filter { ![.system, .ring, .gestures].contains($0) } }
 }
+public struct RingApplication: Codable, Equatable {
+    public var bundleIdentifier: String?
+    public var name: String
+    public var path: String
+    public init(bundleIdentifier: String?, name: String, path: String) {
+        self.bundleIdentifier = bundleIdentifier
+        self.name = name
+        self.path = path
+    }
+}
+public enum RingAction: Codable, Equatable {
+    case mouse(MouseAction)
+    case application(RingApplication)
+
+    private enum CodingKeys: String, CodingKey { case application }
+
+    public init(from decoder: Decoder) throws {
+        if let action = try? decoder.singleValueContainer().decode(MouseAction.self) {
+            self = .mouse(action)
+            return
+        }
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self = .application(try container.decode(RingApplication.self, forKey: .application))
+    }
+    public func encode(to encoder: Encoder) throws {
+        switch self {
+        case .mouse(let action):
+            var container = encoder.singleValueContainer()
+            try container.encode(action)
+        case .application(let application):
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(application, forKey: .application)
+        }
+    }
+    public var title: String {
+        switch self {
+        case .mouse(let action): return action.title
+        case .application(let application): return application.name
+        }
+    }
+    public var symbol: String {
+        switch self {
+        case .mouse(let action): return action.symbol
+        case .application: return "app.fill"
+        }
+    }
+    public var isValid: Bool {
+        switch self {
+        case .mouse(let action): return MouseAction.ringChoices.contains(action)
+        case .application(let application):
+            let hasName = !application.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let hasLocation = !(application.bundleIdentifier ?? "").isEmpty || !application.path.isEmpty
+            return hasName && hasLocation
+        }
+    }
+}
 public struct ScrollPreferences: Codable, Equatable {
     public var enabled = true
     public var smooth = true
@@ -51,7 +107,7 @@ public struct AppProfile: Codable, Identifiable, Equatable {
 public struct Preferences: Codable {
     public var scroll = ScrollPreferences()
     public var buttons: [String: MouseAction] = [:]
-    public var ring: [MouseAction] = [.missionControl, .spotlight, .screenshot, .copy, .paste, .playPause]
+    public var ring: [RingAction] = [.mouse(.missionControl), .mouse(.spotlight), .mouse(.screenshot), .mouse(.copy), .mouse(.paste), .mouse(.playPause)]
     public var profiles: [AppProfile] = []
     public var desiredDPI: Int?
     public var desiredWheel: WheelMode?
@@ -67,7 +123,7 @@ public struct Preferences: Codable {
         desiredThreshold = max(1, min(254, desiredThreshold))
         if let torque = desiredTorque { desiredTorque = max(1, min(100, torque)) }
         desiredIntensity = max(0, min(100, desiredIntensity))
-        if ring.count != 6 || ring.contains(where: { !MouseAction.ringChoices.contains($0) }) { ring = Preferences().ring }
+        if ring.count != 6 || ring.contains(where: { !$0.isValid }) { ring = Preferences().ring }
     }
 }
 public struct GestureAccumulator {

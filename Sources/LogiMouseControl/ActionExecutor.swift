@@ -6,6 +6,12 @@ final class ActionExecutor {
     private let spotlight = SpotlightShortcut()
     var showRing: (() -> Void)?
     var onError: ((String) -> Void)?
+    func execute(_ ringAction: RingAction) {
+        switch ringAction {
+        case .mouse(let action): execute(action)
+        case .application(let application): openApplication(application)
+        }
+    }
     func execute(_ action: MouseAction) {
         guard AXIsProcessTrusted() else { onError?("Разрешите Универсальный доступ для выполнения действий мыши."); return }
         switch action {
@@ -51,6 +57,20 @@ final class ActionExecutor {
         NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: configuration) { [weak self] _, error in
             guard let error else { return }
             DispatchQueue.main.async { self?.onError?("Не удалось открыть \(name): \(error.localizedDescription)") }
+        }
+    }
+    private func openApplication(_ application: RingApplication) {
+        let savedURL = URL(fileURLWithPath: application.path)
+        let resolvedURL = application.bundleIdentifier.flatMap { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }
+        guard let url = resolvedURL ?? (FileManager.default.fileExists(atPath: savedURL.path) ? savedURL : nil) else {
+            onError?("Приложение \(application.name) не найдено. Выберите его заново в настройках кольца.")
+            return
+        }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { [weak self] _, error in
+            guard let error else { return }
+            DispatchQueue.main.async { self?.onError?("Не удалось открыть \(application.name): \(error.localizedDescription)") }
         }
     }
     private func symbolic(_ id: Int, fallback: (CGKeyCode, CGEventFlags)) {

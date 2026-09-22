@@ -7,7 +7,7 @@ final class RingController {
     private var outsideMonitor: Any?
     private var escapeMonitor: Any?
     private var lastPulse = 0.0
-    func show(actions: [MouseAction], execute: @escaping (MouseAction) -> Void, pulse: @escaping () -> Void) {
+    func show(actions: [RingAction], execute: @escaping (RingAction) -> Void, pulse: @escaping () -> Void) {
         if panel != nil { close(); return }
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 340), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.level = .popUpMenu; panel.backgroundColor = .clear; panel.isOpaque = false
@@ -36,8 +36,8 @@ final class RingController {
     }
 }
 struct ActionRingView: View {
-    let actions: [MouseAction]
-    let select: (MouseAction) -> Void
+    let actions: [RingAction]
+    let select: (RingAction) -> Void
     let cancel: () -> Void
     let hover: () -> Void
     @ViewState<Int?> private var hovered: Int?
