@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "skills": {
+    "sdd-init": {
+      "source": "giuseppe-trisciuoglio/developer-kit",
+      "ref": "306f428f278d83722afdea44a7398dc46dab967f",
+      "sourceType": "github",
+      "skillPath": "plugins/developer-kit-specs/skills/sdd-init/SKILL.md",
+      "computedHash": "9fa3b3d4e955cfd87108ca6509be8a1f591030b57fa30f5988185ca9c6510721"
+    }
+  }
+}

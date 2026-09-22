@@ -1,0 +1,138 @@
+{
+  "metadata": {
+    "spec_id": "project-init",
+    "version": "1.0.0",
+    "created": "2026-09-22",
+    "project": "LogiMouseControl",
+    "type": "initial-discovery"
+  },
+  "context": {
+    "workingDirectory": "/Users/alexandr/Documents/Projects/self/LogiMouseControl",
+    "projectName": "LogiMouseControl",
+    "product": "Native macOS control application for Logitech MX Master 4 over Bluetooth",
+    "minimumPlatform": "macOS 14"
+  },
+  "stack": {
+    "primaryLanguage": "Swift 5.9",
+    "framework": "SwiftUI with AppKit, IOKit HID, CoreGraphics and ServiceManagement",
+    "buildSystem": "Swift Package Manager with project shell scripts",
+    "runtimeDependencies": [],
+    "persistence": "UserDefaults with Codable preferences"
+  },
+  "conventions": {
+    "folderStructure": [
+      "Sources/MouseCore",
+      "Sources/LogiMouseControl",
+      "Sources/LogiMouseControl/DeviceImages",
+      "Tests/MouseCoreTests",
+      "Tests/SpotlightShortcutChecks",
+      "Resources",
+      "scripts",
+      "docs"
+    ],
+    "namingPatterns": [
+      "PascalCase Swift types",
+      "camelCase properties and functions",
+      "one primary responsibility per source file",
+      "domain values represented by named enums and structs",
+      "localized user-facing text in Russian"
+    ],
+    "configFiles": [
+      "Package.swift",
+      "Resources/Info.plist",
+      ".gitignore",
+      "AGENTS.md"
+    ],
+    "testingPattern": "Executable checks built from pure MouseCore logic plus fake-dependent Spotlight regression checks; no automated physical mouse input or assigned actions",
+    "verificationCommands": [
+      "./scripts/test.sh",
+      "./scripts/build.sh",
+      "git diff --check"
+    ]
+  },
+  "architecture": {
+    "style": "LAYERED_MODULAR_MONOLITH",
+    "layers": [
+      "SwiftUI and AppKit presentation",
+      "AppModel application coordination",
+      "device, scroll, action, ring and recovery services",
+      "IOKit and macOS infrastructure adapters",
+      "MouseCore protocol and pure domain logic"
+    ],
+    "modules": [
+      {
+        "name": "MouseCore",
+        "responsibilities": [
+          "HID++ packet model and response matching",
+          "preferences and action models",
+          "time-based scroll integration",
+          "device artwork metadata"
+        ]
+      },
+      {
+        "name": "LogiMouseControl",
+        "responsibilities": [
+          "application lifecycle and UI",
+          "device discovery and configuration",
+          "macOS event generation",
+          "capture recovery and system integration"
+        ]
+      }
+    ],
+    "patterns": [
+      "observable application coordinator",
+      "callback-based service boundaries",
+      "capability-driven UI and device configuration",
+      "single outstanding request with strict response correlation",
+      "write then verify for hardware settings",
+      "in-memory crash recovery guardian",
+      "profile override with general fallback",
+      "pure core logic isolated from platform UI"
+    ]
+  },
+  "domain": {
+    "primaryEntities": [
+      "DeviceSnapshot",
+      "MouseControl",
+      "HIDPacket",
+      "Preferences",
+      "ScrollPreferences",
+      "AppProfile",
+      "MouseAction",
+      "RingAction",
+      "CaptureRecovery"
+    ],
+    "services": [
+      "AppModel",
+      "DeviceService",
+      "HIDTransport",
+      "ScrollEngine",
+      "ActionExecutor",
+      "RingController",
+      "CaptureGuardian",
+      "SpotlightShortcut"
+    ],
+    "externalBoundaries": [
+      "Logitech MX Master 4 Bluetooth HID++ interface",
+      "macOS Accessibility and Input Monitoring",
+      "NSWorkspace and symbolic hotkeys",
+      "UserDefaults",
+      "local application bundle resources"
+    ]
+  },
+  "constraints": [
+    "Do not simulate mouse-button presses or wheel scrolling during automated verification",
+    "Do not execute assigned actions for verification",
+    "Do not persist serial numbers, Bluetooth addresses or activity history",
+    "Do not claim hardware behavior is verified before user device testing",
+    "Do not enable unsupported control flags or capabilities",
+    "Do not add network or telemetry behavior without an explicit architecture decision"
+  ],
+  "references": {
+    "constitution": "docs/specs/architecture.md",
+    "ontology": "docs/specs/ontology.md",
+    "readme": "README.md",
+    "hardwareValidation": "docs/HARDWARE_VALIDATION.md"
+  },
+  "source": "sdd-init"
+}
