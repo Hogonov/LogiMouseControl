@@ -51,15 +51,41 @@ private struct MainWindowContent: View {
 
     var body: some View {
         MainView().environmentObject(model)
+            .background(MainWindowCloseObserver())
             .onAppear {
                 delegate.model = model
                 // Keep the scene action available after the window closes.
                 delegate.openMainWindow = { [openWindow] in openWindow(id: "main") }
                 NSApp.setActivationPolicy(.regular)
             }
-            .onDisappear { NSApp.setActivationPolicy(.accessory) }
     }
 }
+
+// SwiftUI can retain window content after closing, so onDisappear is not a
+// reliable close callback. Observe only the settings window, not menu/ring panels.
+private struct MainWindowCloseObserver: NSViewRepresentable {
+    func makeNSView(context: Context) -> CloseObserverView { CloseObserverView() }
+    func updateNSView(_ nsView: CloseObserverView, context: Context) {}
+
+    final class CloseObserverView: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            NotificationCenter.default.removeObserver(self, name: NSWindow.willCloseNotification, object: nil)
+            guard let window else { return }
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(windowWillClose(_:)),
+                name: NSWindow.willCloseNotification, object: window
+            )
+        }
+
+        @objc private func windowWillClose(_ notification: Notification) {
+            NSApp.setActivationPolicy(.accessory)
+        }
+
+        deinit { NotificationCenter.default.removeObserver(self) }
+    }
+}
+
 struct MenuContent: View {
     @ObservedObject var model: AppModel
     let openSettings: () -> Void
