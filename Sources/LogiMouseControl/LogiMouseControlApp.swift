@@ -7,6 +7,20 @@ typealias ViewState<Value> = SwiftUI.State<Value>
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var model: AppModel?
+    var openMainWindow: (() -> Void)?
+
+    func showSettings() {
+        NSApp.setActivationPolicy(.regular)
+        openMainWindow?()
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard openMainWindow != nil else { return true }
+        showSettings()
+        return false
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let model else { return .terminateNow }
         model.shutdown { sender.reply(toApplicationShouldTerminate: true) }
@@ -19,34 +33,41 @@ struct LogiMouseControlApp: App {
     @StateObject private var model = AppModel()
     var body: some Scene {
         Window("Logi Mouse Control", id: "main") {
-            MainView().environmentObject(model)
-                .onAppear {
-                    delegate.model = model
-                    NSApp.setActivationPolicy(.regular)
-                }
-                .onDisappear { NSApp.setActivationPolicy(.accessory) }
+            MainWindowContent(model: model, delegate: delegate)
         }
         .defaultSize(width: 1060, height: 760)
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
         .commands { CommandGroup(replacing: .newItem) {} }
         MenuBarExtra("MX Master 4", systemImage: model.active ? "computermouse.fill" : "computermouse") {
-            MenuContent(model: model)
+            MenuContent(model: model, openSettings: delegate.showSettings)
         }
+    }
+}
+private struct MainWindowContent: View {
+    @ObservedObject var model: AppModel
+    let delegate: AppDelegate
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        MainView().environmentObject(model)
+            .onAppear {
+                delegate.model = model
+                // Keep the scene action available after the window closes.
+                delegate.openMainWindow = { [openWindow] in openWindow(id: "main") }
+                NSApp.setActivationPolicy(.regular)
+            }
+            .onDisappear { NSApp.setActivationPolicy(.accessory) }
     }
 }
 struct MenuContent: View {
     @ObservedObject var model: AppModel
-    @Environment(\.openWindow) private var openWindow
+    let openSettings: () -> Void
     var body: some View {
         Text("MX Master 4 · \(model.device.battery.map { "\($0)%" } ?? "—")")
         Text(model.status)
         Divider()
-        Button("Открыть настройки") {
-            NSApp.setActivationPolicy(.regular)
-            openWindow(id: "main")
-            NSApp.activate(ignoringOtherApps: true)
-        }
+        Button("Открыть настройки", action: openSettings)
         Button(model.paused ? "Продолжить обработку" : "Приостановить обработку") { model.togglePause() }
         Button("Кольцо действий") { model.showRing() }.disabled(!model.accessibility)
         Divider()
