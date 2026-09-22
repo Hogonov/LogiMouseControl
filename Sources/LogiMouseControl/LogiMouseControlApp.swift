@@ -20,7 +20,11 @@ struct LogiMouseControlApp: App {
     var body: some Scene {
         Window("Logi Mouse Control", id: "main") {
             MainView().environmentObject(model)
-                .onAppear { delegate.model = model }
+                .onAppear {
+                    delegate.model = model
+                    NSApp.setActivationPolicy(.regular)
+                }
+                .onDisappear { NSApp.setActivationPolicy(.accessory) }
         }
         .defaultSize(width: 1060, height: 760)
         .windowStyle(.hiddenTitleBar)
@@ -38,7 +42,11 @@ struct MenuContent: View {
         Text("MX Master 4 · \(model.device.battery.map { "\($0)%" } ?? "—")")
         Text(model.status)
         Divider()
-        Button("Открыть настройки") { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }
+        Button("Открыть настройки") {
+            NSApp.setActivationPolicy(.regular)
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+        }
         Button(model.paused ? "Продолжить обработку" : "Приостановить обработку") { model.togglePause() }
         Button("Кольцо действий") { model.showRing() }.disabled(!model.accessibility)
         Divider()

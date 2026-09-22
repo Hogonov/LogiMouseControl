@@ -10,6 +10,7 @@
 <key>CFBundleVersion</key><string>1</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
+<key>LSUIElement</key><true/>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSBluetoothAlwaysUsageDescription</key><string>Связь с вашей MX Master 4 по Bluetooth для настройки мыши. Никакие данные не отправляются в интернет.</string>
