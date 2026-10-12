@@ -210,7 +210,7 @@ final class AppModel: ObservableObject {
     func showRing() {
         guard accessibility else { grantAccessibility(); return }
         scroll.stop()
-        ring.show(actions: preferences.ring, execute: { [weak self] action in self?.executor.execute(action); self?.service.pulse() }, pulse: { [weak self] in self?.service.pulse(4) })
+        ring.show(actions: preferences.ring, accent: preferences.accent, execute: { [weak self] action in self?.executor.execute(action); self?.service.pulse() }, pulse: { [weak self] in self?.service.pulse(4) })
     }
     func switchHost(_ host: Int) {
         active = false; scroll.stop(); ring.close()

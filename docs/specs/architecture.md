@@ -1,9 +1,9 @@
 # Архитектурная конституция LogiMouseControl
 
-Версия: 2.1.0
+Версия: 2.2.0
 Дата: 2026-10-12
 Статус: действующая
-Последнее изменение: [CH-0003](changes/0003-smooth-desktop-swipe/spec.md) — плавное переключение рабочих столов (`DockSwipe`, `SpaceSwipe`, `GestureSession`, [ADR-0002](adr/0002-dock-swipe-synthesis.md)). Сверка с кодом: CH-0001, коммит `ef48295`, и затронутые CH-0002 и CH-0003 разделы.
+Последнее изменение: [CH-0004](changes/0004-accent-color/spec.md) — акцентный цвет в настройках и палитра `Theme.swift`. Сверка с кодом: CH-0001, коммит `ef48295`, и затронутые CH-0002…CH-0004 разделы.
 
 Документ описывает приложение таким, какое оно есть в коде. Процесс работы с изменениями описан в [README.md](README.md), термины — в [ontology.md](ontology.md).
 
@@ -55,7 +55,7 @@ LogiMouseControl — локальное приложение для macOS 14+, �
 |---|---|---|---|---|
 | `AppEntry` | [AppEntry.swift](../../Sources/LogiMouseControl/AppEntry.swift) | Разбор флагов запуска, `diagnose()` | `DeviceService`, `CaptureGuardian.run()`, `LogiMouseControlApp` | main |
 | `LogiMouseControlApp`, `AppDelegate` | [LogiMouseControlApp.swift](../../Sources/LogiMouseControl/LogiMouseControlApp.swift) | Окно, строка меню, политика активации, штатное завершение | `AppModel` | main |
-| Views | [MainView.swift](../../Sources/LogiMouseControl/MainView.swift), [MouseIllustration.swift](../../Sources/LogiMouseControl/MouseIllustration.swift), [RingActionIcon.swift](../../Sources/LogiMouseControl/RingActionIcon.swift), [ArtworkPreview.swift](../../Sources/LogiMouseControl/ArtworkPreview.swift) | Отображение и ввод настроек | только `AppModel` и типы `MouseCore` | main |
+| Views | [MainView.swift](../../Sources/LogiMouseControl/MainView.swift), [Theme.swift](../../Sources/LogiMouseControl/Theme.swift) (палитра `Palette`, ключ окружения `accent`, `appTheme`, `AccentPicker`), [MouseIllustration.swift](../../Sources/LogiMouseControl/MouseIllustration.swift), [RingActionIcon.swift](../../Sources/LogiMouseControl/RingActionIcon.swift), [ArtworkPreview.swift](../../Sources/LogiMouseControl/ArtworkPreview.swift) | Отображение и ввод настроек | только `AppModel` и типы `MouseCore` | main |
 | `AppModel` | [AppModel.swift](../../Sources/LogiMouseControl/AppModel.swift) | Состояние для UI, разрешения, конфликты, профили, захват, жизненный цикл, разбор событий устройства | все сервисы, `UserDefaults`, `NSWorkspace`, `SMAppService` | main (по соглашению) |
 | `DeviceService` | [DeviceService.swift](../../Sources/LogiMouseControl/DeviceService.swift) | Команды HID++, снимок устройства, запись с проверкой, захват и освобождение контролов | `HIDTransport`, `CaptureGuardian` | очередь `local.logimouse.hardware` |
 | `HIDTransport` | [HIDTransport.swift](../../Sources/LogiMouseControl/HIDTransport.swift) | IOHIDManager, открытие устройства, один запрос в полёте, доставка событий | IOKit, `HIDPacket` | callbacks на main run loop; `request` на очереди |
@@ -65,7 +65,7 @@ LogiMouseControl — локальное приложение для macOS 14+, �
 | `SymbolicShortcut` | [SymbolicShortcut.swift](../../Sources/LogiMouseControl/SymbolicShortcut.swift) | Один symbolic hotkey WindowServer (64, 33, 36, 79, 81) через динамически загружаемый CGS: чтение действующего сочетания, запасное значение macOS по умолчанию, временное включение и возврат | `dlopen`/`dlsym` | main |
 | `DockSwipe` | [DockSwipe.swift](../../Sources/LogiMouseControl/DockSwipe.swift) | События DockSwipe для плавного перехода между рабочими столами на macOS 27+: `IOHIDEvent`, вложенный в `CGEvent` типа 30 (ADR-0002) | `dlopen`/`dlsym` (IOKit, SkyLight), `CGEvent` | main |
 | `RingController` | [RingController.swift](../../Sources/LogiMouseControl/RingController.swift) | Неактивирующая `NSPanel` с `ActionRingView` | SwiftUI, `NSEvent` monitors | main |
-| `MouseCore` | [Sources/MouseCore](../../Sources/MouseCore/) | `HIDPacket`, `HIDFailure`, `reportingPayload`, `WheelMode`, `Preferences`, `ScrollIntegrator`, `GestureAccumulator`, `GestureDirection`, `GestureActions`, `GestureSession`, `SpaceSwipe`, `SwipeStep`, `MouseIdentity`, `MouseArtworkManifest` | `Foundation` | любой |
+| `MouseCore` | [Sources/MouseCore](../../Sources/MouseCore/) | `HIDPacket`, `HIDFailure`, `reportingPayload`, `WheelMode`, `Preferences`, `AccentColor`, `ScrollIntegrator`, `GestureAccumulator`, `GestureDirection`, `GestureActions`, `GestureSession`, `SpaceSwipe`, `SwipeStep`, `MouseIdentity`, `MouseArtworkManifest` | `Foundation` | любой |
 
 ```mermaid
 flowchart LR
@@ -224,7 +224,7 @@ sequenceDiagram
 ### 4.5. Настройки
 
 1. `AppModel.init()` читает `UserDefaults.standard.data(forKey: "preferences.v1")`, декодирует `Preferences` и вызывает `sanitize()`.
-2. Привязки views меняют `AppModel.preferences`. Прокрутка, кнопки, направления жестов и профили вызывают `preferencesChanged()` = `save()` + `configure()`. Изменение кольца вызывает только `save()`.
+2. Привязки views меняют `AppModel.preferences`. Прокрутка, кнопки, направления жестов и профили вызывают `preferencesChanged()` = `save()` + `configure()`. Изменение кольца и акцентного цвета вызывает только `save()`. `MainView` применяет `preferences.accent` через `appTheme` (окружение `accent`, `tint`, тёмная схема); `AppModel.showRing()` передаёт акцент в `RingController.show`.
 3. Аппаратные значения в `HardwareView` хранятся в локальных `@ViewState` и попадают в `Preferences` только после подтверждения устройством (4.3).
 4. При смене активного приложения (`NSWorkspace.didActivateApplicationNotification`, кроме собственного bundle) `frontmostID` меняется, прокрутка и кольцо останавливаются, `configure()` применяет эффективный профиль.
 
@@ -320,13 +320,13 @@ stateDiagram-v2
 
 | Тип | Поля | Особенности |
 |---|---|---|
-| `Preferences` | `scroll`, `buttons`, `gestures`, `ring`, `profiles`, `desiredDPI?`, `desiredWheel?`, `desiredThreshold`, `desiredTorque?`, `desiredHaptics?`, `desiredIntensity` | Ключи `buttons` и `gestures` — десятичный CID строкой (`"416"` для `0x1A0`). Ручной `init(from:)` (CH-0002): отсутствующий ключ даёт значение по умолчанию |
+| `Preferences` | `scroll`, `buttons`, `gestures`, `ring`, `profiles`, `desiredDPI?`, `desiredWheel?`, `desiredThreshold`, `desiredTorque?`, `desiredHaptics?`, `desiredIntensity`, `accent` | Ключи `buttons` и `gestures` — десятичный CID строкой (`"416"` для `0x1A0`). Ручной `init(from:)` (CH-0002): отсутствующий ключ даёт значение по умолчанию; неизвестное значение `accent` даёт `mint` (CH-0004) |
 | `ScrollPreferences` | `enabled`, `smooth`, `natural`, `horizontalNatural`, `speed`, `horizontalSpeed`, `smoothness` | `sanitize()` ограничивает скорости 0,2…4 и `smoothness` 0,015…0,18 |
 | `AppProfile` | `id` (bundle identifier), `name`, `scroll`, `buttons` | — |
 | `RingAction` | строка `MouseAction` или `{"application": RingApplication}` | Собственный `Codable`; старый формат-строка читается |
 | `RingApplication` | `bundleIdentifier?`, `name`, `path` | Поиск по bundle ID, затем по пути (`resolvedURL`) |
 | `GestureActions` | `up`, `down`, `left`, `right`, `click` | Ручной `init(from:)`: отсутствующее или неизвестное значение направления заменяется значением по умолчанию; `.system` и `.gestures` недопустимы |
-| `MouseAction`, `WheelMode` | строковые `rawValue` | CH-0002 добавил `previousDesktop`, `nextDesktop` |
+| `MouseAction`, `WheelMode`, `AccentColor` | строковые `rawValue` | CH-0002 добавил `previousDesktop`, `nextDesktop`; CH-0004 — `AccentColor` (`mint`, `teal`, `blue`, `violet`, `pink`, `graphite`) |
 
 `sanitize()` вызывается при чтении и каждом сохранении: ограничивает диапазоны, округляет `desiredDPI` до 50 в пределах 200…8000 и восстанавливает кольцо по умолчанию, если в нём не 6 допустимых пунктов.
 
@@ -367,10 +367,10 @@ stateDiagram-v2
 
 | Проверка | Что подтверждает | Что не подтверждает |
 |---|---|---|
-| `./scripts/test.sh` | Логику `MouseCore` (27 проверок) и `SymbolicShortcut` на подставных зависимостях (13 проверок) | Работу с устройством, `AppModel`, `DeviceService`, UI |
+| `./scripts/test.sh` | Логику `MouseCore` (35 проверок) и `SymbolicShortcut` на подставных зависимостях (13 проверок) | Работу с устройством, `AppModel`, `DeviceService`, UI |
 | Отладочная сборка `swift build --product LogiMouseControl` (команда в `.claude/skills/verify/SKILL.md`) | Компиляцию приложения, без изменения `dist/` и подписи | Поведение |
 | `./scripts/build.sh` | Сборку `.app`, подпись постоянным сертификатом | Поведение; перезаписывает `dist/` |
-| `--render-artwork-preview <папка>` | Вёрстку `ButtonAssignmentsView` и `MouseIllustration` | Нажатия и реакцию мыши |
+| `--render-artwork-preview <папка>` | Вёрстку `ButtonAssignmentsView` (в том числе с другим акцентом), `MouseIllustration` и `AppearanceCard` | Нажатия и реакцию мыши |
 | `--diagnose` | Чтение функций и настроек с подключённой мыши, только чтение | Захват, прокрутку, действия |
 | `git diff --check` | Формат патча | — |
 | Ручная проверка пользователем по `docs/HARDWARE_VALIDATION.md` | Аппаратное поведение | — |

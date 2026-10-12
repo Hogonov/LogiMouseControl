@@ -40,7 +40,7 @@ struct MouseButtonMap: View {
     let controls: [MouseControl]
     let extendedModelID: UInt8?
     @Binding var selectedID: UInt16?
-    private let blue = Color(red: 0.32, green: 0.61, blue: 1)
+    @Environment(\.accent) private var accent
 
     var body: some View {
         GeometryReader { geometry in
@@ -54,10 +54,10 @@ struct MouseButtonMap: View {
                     ForEach(controls) { control in
                         if let point = MouseArtwork.metadata?.buttons?.normalizedPoint(for: control.id, pngWidth: image.size.width) {
                             Button { selectedID = control.id } label: {
-                                Circle().fill(blue.opacity(selectedID == control.id ? 0.3 : 0.14)).frame(width: 32, height: 32)
-                                    .overlay(Circle().fill(selectedID == control.id ? .white : blue).frame(width: 13, height: 13)
-                                        .overlay(Circle().stroke(Color.black.opacity(0.85), lineWidth: 2)))
-                                    .overlay(Circle().stroke(blue.opacity(selectedID == control.id ? 1 : 0), lineWidth: 2))
+                                Circle().fill(accent.opacity(selectedID == control.id ? 0.3 : 0.14)).frame(width: 32, height: 32)
+                                    .overlay(Circle().fill(selectedID == control.id ? .white : accent).frame(width: 13, height: 13)
+                                        .overlay(Circle().stroke(Palette.onAccent.opacity(0.85), lineWidth: 2)))
+                                    .overlay(Circle().stroke(accent.opacity(selectedID == control.id ? 1 : 0), lineWidth: 2))
                                     .contentShape(Circle())
                             }.buttonStyle(.plain)
                                 .position(x: point.x * width, y: point.y * height)
@@ -85,7 +85,7 @@ struct ButtonAssignmentsView: View {
     /// Only for the artwork preview; the window starts with the first control.
     var initialSelectedID: UInt16? = nil
     @ViewState<UInt16?> private var selectedID: UInt16? = nil
-    private let blue = Color(red: 0.32, green: 0.61, blue: 1)
+    @Environment(\.accent) private var accent
     private var selected: MouseControl? { controls.first { $0.id == (selectedID ?? initialSelectedID) } ?? controls.first }
 
     var body: some View {
@@ -99,7 +99,7 @@ struct ButtonAssignmentsView: View {
             VStack(alignment: .leading, spacing: 18) {
                 if let selected {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("НАЗНАЧЕНИЕ КНОПКИ").font(.system(size: 9, weight: .semibold)).tracking(1.3).foregroundStyle(blue)
+                        Text("НАЗНАЧЕНИЕ КНОПКИ").font(.system(size: 9, weight: .semibold)).tracking(1.3).foregroundStyle(accent)
                         Text(selected.name).font(.system(size: 20, weight: .semibold))
                         Picker("Действие", selection: Binding(get: { assignments[String(selected.id)] ?? .system }, set: {
                             assignments[String(selected.id)] = $0; changed()
@@ -117,13 +117,13 @@ struct ButtonAssignmentsView: View {
                                 .buttonStyle(.bordered).controlSize(.small)
                         }
                     }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
-                        .background(blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                        .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
                     VStack(spacing: 2) {
                         ForEach(controls) { control in
                             let action = assignments[String(control.id)] ?? .system
                             Button { selectedID = control.id } label: {
                                 HStack(spacing: 10) {
-                                    Circle().fill(selected.id == control.id ? blue : .white.opacity(0.18)).frame(width: 6, height: 6)
+                                    Circle().fill(selected.id == control.id ? accent : Palette.inactiveDot).frame(width: 6, height: 6)
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text(control.name).font(.system(size: 12, weight: .medium)).foregroundStyle(.primary)
                                         Text(action.title).font(.system(size: 11)).foregroundStyle(.secondary)
@@ -131,7 +131,7 @@ struct ButtonAssignmentsView: View {
                                     Spacer(minLength: 0)
                                     Image(systemName: action.symbol).font(.system(size: 13)).foregroundStyle(.secondary)
                                 }.padding(.horizontal, 10).padding(.vertical, 8).frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(selected.id == control.id ? .white.opacity(0.05) : .clear, in: RoundedRectangle(cornerRadius: 9))
+                                    .background(selected.id == control.id ? Palette.selection : .clear, in: RoundedRectangle(cornerRadius: 9))
                                     .contentShape(Rectangle())
                             }.buttonStyle(.plain)
                         }

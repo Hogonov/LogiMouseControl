@@ -108,6 +108,28 @@ public struct AppProfile: Codable, Identifiable, Equatable {
     public var buttons: [String: MouseAction] = [:]
     public init(id: String, name: String, scroll: ScrollPreferences, buttons: [String: MouseAction]) { self.id = id; self.name = name; self.scroll = scroll; self.buttons = buttons }
 }
+/// Accent of the always-dark interface. Components are sRGB 0…1; every colour is light enough for black text on it.
+public enum AccentColor: String, Codable, CaseIterable, Identifiable {
+    case mint, teal, blue, violet, pink, graphite
+    public var id: String { rawValue }
+    public var title: String {
+        switch self {
+        case .mint: return "Мятный"; case .teal: return "Бирюзовый"; case .blue: return "Синий"
+        case .violet: return "Фиолетовый"; case .pink: return "Розовый"; case .graphite: return "Графит"
+        }
+    }
+    public var rgb: (red: Double, green: Double, blue: Double) {
+        switch self {
+        case .mint: return (0.62, 0.91, 0.74); case .teal: return (0.45, 0.86, 0.92); case .blue: return (0.49, 0.72, 1)
+        case .violet: return (0.74, 0.64, 1); case .pink: return (1, 0.6, 0.78); case .graphite: return (0.8, 0.82, 0.86)
+        }
+    }
+    /// WCAG relative luminance, used to keep black text on the accent readable.
+    public var relativeLuminance: Double {
+        func linear(_ c: Double) -> Double { c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4) }
+        return 0.2126 * linear(rgb.red) + 0.7152 * linear(rgb.green) + 0.0722 * linear(rgb.blue)
+    }
+}
 public struct Preferences: Codable {
     public var scroll = ScrollPreferences()
     public var buttons: [String: MouseAction] = [:]
@@ -121,6 +143,7 @@ public struct Preferences: Codable {
     public var desiredTorque: Int?
     public var desiredHaptics: Bool?
     public var desiredIntensity: Int = 50
+    public var accent: AccentColor = .mint
     public init() {}
     /// Keys missing from an older `preferences.v1` keep their defaults instead of resetting everything (INV-14).
     public init(from decoder: Decoder) throws {
@@ -137,6 +160,8 @@ public struct Preferences: Codable {
         desiredTorque = try c.decodeIfPresent(Int.self, forKey: .desiredTorque)
         desiredHaptics = try c.decodeIfPresent(Bool.self, forKey: .desiredHaptics)
         desiredIntensity = try c.decodeIfPresent(Int.self, forKey: .desiredIntensity) ?? d.desiredIntensity
+        // An accent from a newer version must not reset the whole preferences.v1.
+        accent = ((try? c.decodeIfPresent(AccentColor.self, forKey: .accent)) ?? nil) ?? d.accent
     }
     public func gestureActions(for cid: UInt16) -> GestureActions { gestures[String(cid)] ?? GestureActions() }
     public mutating func sanitize() {

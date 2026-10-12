@@ -7,7 +7,7 @@ final class RingController {
     private var outsideMonitor: Any?
     private var escapeMonitor: Any?
     private var lastPulse = 0.0
-    func show(actions: [RingAction], execute: @escaping (RingAction) -> Void, pulse: @escaping () -> Void) {
+    func show(actions: [RingAction], accent: AccentColor, execute: @escaping (RingAction) -> Void, pulse: @escaping () -> Void) {
         if panel != nil { close(); return }
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 340), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.level = .popUpMenu; panel.backgroundColor = .clear; panel.isOpaque = false
@@ -16,7 +16,7 @@ final class RingController {
         panel.contentView = NSHostingView(rootView: ActionRingView(actions: actions, select: { [weak self] action in self?.close(); execute(action) }, cancel: { [weak self] in self?.close() }, hover: { [weak self] in
             let now = ProcessInfo.processInfo.systemUptime
             if now - (self?.lastPulse ?? 0) > 0.08 { self?.lastPulse = now; pulse() }
-        }))
+        }).appTheme(accent))
         let point = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main
         let bounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1000, height: 800)
@@ -40,20 +40,21 @@ struct ActionRingView: View {
     let select: (RingAction) -> Void
     let cancel: () -> Void
     let hover: () -> Void
+    @Environment(\.accent) private var accent
     @ViewState<Int?> private var hovered: Int?
     var body: some View {
         ZStack {
-            Circle().fill(.ultraThinMaterial).overlay(Circle().stroke(.white.opacity(0.15), lineWidth: 1)).padding(9)
+            Circle().fill(.ultraThinMaterial).overlay(Circle().stroke(Palette.panelStroke, lineWidth: 1)).padding(9)
             Button(action: cancel) { VStack(spacing: 6) { Image(systemName: "xmark").font(.title3); Text("Закрыть").font(.caption) }.foregroundStyle(.secondary).frame(width: 78, height: 78).background(.quaternary, in: Circle()) }.buttonStyle(.plain).accessibilityLabel("Закрыть кольцо действий")
             ForEach(Array(actions.enumerated()), id: \.offset) { index, action in
                 let angle = Double(index) * .pi / 3 - .pi / 2
                 Button { select(action) } label: {
                     VStack(spacing: 8) { RingActionIcon(action: action, size: 23); Text(action.title).font(.system(size: 10, weight: .medium)).lineLimit(2).multilineTextAlignment(.center) }
-                        .frame(width: 82, height: 76).foregroundStyle(hovered == index ? Color.black : Color.primary)
-                        .background(hovered == index ? Color.mint : .clear, in: RoundedRectangle(cornerRadius: 21))
+                        .frame(width: 82, height: 76).foregroundStyle(hovered == index ? Palette.onAccent : Color.primary)
+                        .background(hovered == index ? accent : .clear, in: RoundedRectangle(cornerRadius: 21))
                 }.buttonStyle(.plain).offset(x: cos(angle) * 112, y: sin(angle) * 112)
                     .onHover { inside in hovered = inside ? index : nil; if inside { hover() } }
             }
-        }.frame(width: 340, height: 340).preferredColorScheme(.dark)
+        }.frame(width: 340, height: 340)
     }
 }

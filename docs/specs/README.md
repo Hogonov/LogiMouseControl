@@ -122,6 +122,7 @@ R-… (spec.md) → AC-… (spec.md) → T-… (plan.md) → V-… / M-… (spec
 | [CH-0001](changes/0001-sdd-adoption/spec.md) | Внедрение Spec-Driven Development | полный | реализовано |
 | [CH-0002](changes/0002-configurable-gestures/spec.md) | Настраиваемые жесты и переключение рабочих столов | полный | реализовано |
 | [CH-0003](changes/0003-smooth-desktop-swipe/spec.md) | Плавное переключение рабочих столов жестом | полный | реализовано |
+| [CH-0004](changes/0004-accent-color/spec.md) | Акцентный цвет в настройках и обновлённая палитра | полный | реализовано |
 
 ### ADR
 

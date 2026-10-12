@@ -4,7 +4,7 @@
     "version": "2.0.0",
     "created": "2026-09-22",
     "updated": "2026-10-12",
-    "updatedBy": "CH-0003",
+    "updatedBy": "CH-0004",
     "verifiedAgainstCommit": "ef48295",
     "project": "LogiMouseControl",
     "type": "initial-discovery"
@@ -120,6 +120,7 @@
         "name": "LogiMouseControl",
         "responsibilities": [
           "application lifecycle and UI",
+          "colour palette and user-selected accent (Theme.swift)",
           "device discovery and configuration",
           "macOS event generation",
           "capture recovery and system integration",
@@ -157,6 +158,7 @@
       "RingAction",
       "RingApplication",
       "WheelMode",
+      "AccentColor",
       "GestureAccumulator",
       "GestureDirection",
       "GestureActions",
@@ -220,7 +222,7 @@
       "adr": "docs/specs/templates/adr.md"
     },
     "identifiers": ["CH-NNNN", "R-NN", "AC-NN", "T-NN", "V-NN", "M-NN", "INV-N", "ADR-NNNN", "D-NN", "U-NN", "P-NN"],
-    "changes": ["docs/specs/changes/0001-sdd-adoption/spec.md", "docs/specs/changes/0002-configurable-gestures/spec.md", "docs/specs/changes/0003-smooth-desktop-swipe/spec.md"],
+    "changes": ["docs/specs/changes/0001-sdd-adoption/spec.md", "docs/specs/changes/0002-configurable-gestures/spec.md", "docs/specs/changes/0003-smooth-desktop-swipe/spec.md", "docs/specs/changes/0004-accent-color/spec.md"],
     "adrs": ["docs/specs/adr/0001-sdd-process-and-structure.md", "docs/specs/adr/0002-dock-swipe-synthesis.md"]
   },
   "references": {

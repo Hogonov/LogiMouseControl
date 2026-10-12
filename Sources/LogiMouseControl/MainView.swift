@@ -1,10 +1,6 @@
 import SwiftUI
 import MouseCore
 
-private let accent = Color(red: 0.62, green: 0.91, blue: 0.74)
-private let canvas = Color(red: 0.065, green: 0.075, blue: 0.08)
-private let surface = Color(red: 0.105, green: 0.12, blue: 0.125)
-
 enum Page: String, CaseIterable, Identifiable {
     case overview = "Обзор", scroll = "Прокрутка", pointer = "Указатель и колесо", buttons = "Кнопки и жесты", ring = "Кольцо действий", profiles = "Профили приложений", settings = "Приложение"
     var id: String { rawValue }
@@ -30,10 +26,12 @@ enum Page: String, CaseIterable, Identifiable {
 struct MainView: View {
     @EnvironmentObject private var model: AppModel
     @ViewState<Page> private var page: Page = .overview
+    /// MainView sets the environment accent itself, so it reads the preference directly.
+    private var accent: Color { model.preferences.accent.color }
     var body: some View {
         HStack(spacing: 0) {
             sidebar
-            Divider().overlay(.white.opacity(0.04))
+            Divider().overlay(Palette.hairline)
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     header
@@ -61,8 +59,8 @@ struct MainView: View {
                         Text("Локально. Без аккаунта, телеметрии и сетевых запросов.")
                     }.font(.system(size: 11)).foregroundStyle(.secondary).padding(.top, 6)
                 }.padding(32).frame(maxWidth: 900)
-            }.background(canvas)
-        }.frame(minWidth: 960, minHeight: 700).background(canvas).preferredColorScheme(.dark).tint(accent)
+            }.background(Palette.canvas)
+        }.frame(minWidth: 960, minHeight: 700).background(Palette.canvas).appTheme(model.preferences.accent)
     }
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -74,18 +72,18 @@ struct MainView: View {
             ForEach(Page.allCases) { item in
                 Button { page = item } label: {
                     HStack(spacing: 11) { Image(systemName: item.symbol).frame(width: 19); Text(item.rawValue).font(.system(size: 12, weight: page == item ? .semibold : .regular)); Spacer() }
-                        .foregroundStyle(page == item ? accent : Color.white.opacity(0.62)).padding(.horizontal, 12).padding(.vertical, 13)
+                        .foregroundStyle(page == item ? accent : Palette.inactive).padding(.horizontal, 12).padding(.vertical, 13)
                         .background(page == item ? accent.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 10))
                 }.buttonStyle(.plain).padding(.bottom, 3)
             }
             Spacer(minLength: 30)
             VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 7) { Circle().fill(model.active ? accent : .orange).frame(width: 6, height: 6); Text(model.active ? "Управление активно" : "Управление неактивно").font(.system(size: 11, weight: .medium)) }
+                HStack(spacing: 7) { Circle().fill(model.active ? accent : Palette.warning).frame(width: 6, height: 6); Text(model.active ? "Управление активно" : "Управление неактивно").font(.system(size: 11, weight: .medium)) }
                 Text(model.activeProfileName).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
                 Button(model.paused ? "Продолжить" : "Приостановить") { model.togglePause() }.font(.system(size: 11)).buttonStyle(.plain).foregroundStyle(accent)
-            }.padding(14).frame(maxWidth: .infinity, alignment: .leading).background(.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
+            }.padding(14).frame(maxWidth: .infinity, alignment: .leading).background(Palette.raised, in: RoundedRectangle(cornerRadius: 12))
             Text("ВЕРСИЯ 0.1 · BLUETOOTH").font(.system(size: 8, weight: .medium)).tracking(1.5).foregroundStyle(.tertiary).padding(.top, 18).padding(.bottom, 20)
-        }.padding(.horizontal, 16).frame(width: 210).background(Color(red: 0.08, green: 0.09, blue: 0.095))
+        }.padding(.horizontal, 16).frame(width: 210).background(Palette.sidebar)
     }
     private var header: some View {
         HStack(alignment: .top) {
@@ -106,7 +104,7 @@ struct MainView: View {
                     Text("Мониторинг ввода нужен для связи с мышью. Универсальный доступ — для прокрутки и действий кнопок. Ввод с клавиатуры не записывается.").font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 10) {
                         if !model.inputMonitoring { Button("Мониторинг ввода") { model.grantInputMonitoring() }.buttonStyle(.bordered) }
-                        if !model.accessibility { Button("Универсальный доступ") { model.grantAccessibility() }.buttonStyle(.borderedProminent).foregroundStyle(.black) }
+                        if !model.accessibility { Button("Универсальный доступ") { model.grantAccessibility() }.buttonStyle(.borderedProminent).foregroundStyle(Palette.onAccent) }
                     }.padding(.top, 4)
                 }
             }
@@ -116,7 +114,7 @@ struct MainView: View {
         VStack(spacing: 18) {
             HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 18) {
-                    HStack(spacing: 6) { Circle().fill(model.device.connected ? accent : .orange).frame(width: 6, height: 6); Text(model.device.connected ? "ПОДКЛЮЧЕНА ПО BLUETOOTH" : "ОЖИДАЕМ ПОДКЛЮЧЕНИЯ").font(.system(size: 9, weight: .semibold)).tracking(1.2) }.foregroundStyle(accent)
+                    HStack(spacing: 6) { Circle().fill(model.device.connected ? accent : Palette.warning).frame(width: 6, height: 6); Text(model.device.connected ? "ПОДКЛЮЧЕНА ПО BLUETOOTH" : "ОЖИДАЕМ ПОДКЛЮЧЕНИЯ").font(.system(size: 9, weight: .semibold)).tracking(1.2) }.foregroundStyle(accent)
                     VStack(alignment: .leading, spacing: 4) { Text("MX Master 4").font(.system(size: 32, weight: .semibold)); Text(model.active ? "Настроена под вас." : "Настройте под себя.").font(.system(size: 16)).foregroundStyle(.secondary) }
                     HStack(spacing: 18) {
                         Label(model.device.battery.map { "\($0)%" } ?? "Заряд —", systemImage: model.device.charging ? "battery.100percent.bolt" : "battery.75percent")
@@ -126,7 +124,8 @@ struct MainView: View {
                 }.padding(.leading, 26).padding(.vertical, 26)
                 Spacer(minLength: 0)
                 MouseIllustration(extendedModelID: model.device.extendedModelID).padding(.vertical, 15).frame(width: 220, height: 250).padding(.trailing, 12).accessibilityLabel("Иллюстрация MX Master 4")
-            }.frame(maxWidth: .infinity).background(LinearGradient(colors: [surface, Color(red: 0.11, green: 0.16, blue: 0.14)], startPoint: .leading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 20)).overlay(RoundedRectangle(cornerRadius: 20).stroke(.white.opacity(0.07)))
+            }.frame(maxWidth: .infinity).background(LinearGradient(colors: [accent.opacity(0), accent.opacity(0.08)], startPoint: .leading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 20))
+                .background(Palette.surface, in: RoundedRectangle(cornerRadius: 20)).overlay(RoundedRectangle(cornerRadius: 20).stroke(Palette.stroke))
             HStack(spacing: 14) {
                 overviewTile("Плавная прокрутка", value: model.preferences.scroll.smooth ? "Включена в настройках" : "Без сглаживания", symbol: "water.waves", target: .scroll)
                 overviewTile("Колесо MagSpeed", value: model.device.wheelMode?.title ?? "Ожидаем данные", symbol: "circle.dotted.circle", target: .pointer)
@@ -183,7 +182,7 @@ struct MainView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Действия под большим пальцем").font(.system(size: 19, weight: .medium))
                         Text("Назначьте «Кольцо действий» тактильной панели или другой кнопке. Наведите курсор и нажмите на действие.").font(.system(size: 12)).foregroundStyle(.secondary)
-                        Button("Открыть кольцо") { model.showRing() }.buttonStyle(.borderedProminent).foregroundStyle(.black)
+                        Button("Открыть кольцо") { model.showRing() }.buttonStyle(.borderedProminent).foregroundStyle(Palette.onAccent)
                     }
                 }
             }
@@ -246,6 +245,7 @@ struct MainView: View {
                     SettingRow("Работа в строке меню", detail: "Закройте окно — приложение продолжит работать. Для выхода используйте меню мыши.") { Image(systemName: "menubar.rectangle").foregroundStyle(accent).font(.title2) }
                 }
             }
+            AppearanceCard(accent: Binding(get: { model.preferences.accent }, set: { model.preferences.accent = $0; model.save() }))
             if model.device.hostCount > 1 {
                 Card {
                     SettingRow("Easy-Switch", detail: "Мышь отключится от этого Mac и перейдёт на выбранный канал.") {
@@ -255,12 +255,13 @@ struct MainView: View {
             }
             Notice(icon: "lock.shield", title: "Приватность заложена в приложение", text: "Нет аналитики, аккаунтов, рекламы, автоматических обновлений и сетевого клиента. Сохраняются только настройки. Название активного приложения используется в памяти для выбора профиля; история не записывается.")
             Notice(icon: "info.circle", title: "Границы версии 0.1", text: "Поддерживается MX Master 4 по Bluetooth. Flow, магазин плагинов, Smart Actions и обновление прошивки пока не реализованы. Это самостоятельное приложение, не продукт Logitech. Аппаратные функции требуют проверки на вашей мыши.")
-            if !model.device.warnings.isEmpty { Text(model.device.warnings.joined(separator: "\n")).font(.caption).foregroundStyle(.orange) }
+            if !model.device.warnings.isEmpty { Text(model.device.warnings.joined(separator: "\n")).font(.caption).foregroundStyle(Palette.warning) }
             Text("Протокол: OpenLogi / openlogi-hidpp. Благодарности и лицензии включены в приложение.").font(.caption).foregroundStyle(.secondary)
         }
     }
 }
 struct ScrollSettingsView: View {
+    @Environment(\.accent) private var accent
     @Binding var preferences: ScrollPreferences
     let changed: () -> Void
     var compact = false
@@ -301,7 +302,7 @@ struct ScrollSettingsView: View {
                             VStack(alignment: .leading, spacing: 20) {
                                 ForEach(1...20, id: \.self) { index in HStack(alignment: .top, spacing: 16) { Text(String(format: "%02d", index)).font(.system(.title3, design: .monospaced)).foregroundStyle(accent.opacity(0.5)); VStack(alignment: .leading, spacing: 5) { Text(index % 2 == 0 ? "Медленно. Точно. Плавно." : "Прокрутка в вашем ритме.").font(.system(size: 14, weight: .medium)); Text("Прокрутите колесо, смените направление и попробуйте свободное вращение.").font(.system(size: 12)).foregroundStyle(.secondary) } } }
                             }.padding(16)
-                        }.frame(height: 175).background(.black.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
+                        }.frame(height: 175).background(Palette.inset, in: RoundedRectangle(cornerRadius: 10))
                     }
                 }
             }
@@ -324,7 +325,7 @@ struct HardwareView: View {
                     SettingRow("Чувствительность сенсора", detail: "Текущее значение: \(model.device.dpi.map { "\($0) DPI" } ?? "не прочитано").") { Text("\(Int(dpi))").font(.system(size: 25, weight: .light, design: .rounded)).monospacedDigit(); Text("DPI").font(.caption).foregroundStyle(.secondary) }
                     Slider(value: $dpi, in: Double(model.device.dpiValues.first ?? 200)...Double(max(201, model.device.dpiValues.last ?? 8000)), step: 50)
                     HStack { Text("Точнее"); Spacer(); Text("Быстрее") }.font(.caption).foregroundStyle(.secondary)
-                    Button("Применить DPI") { model.setDPI(Int(dpi)) }.buttonStyle(.borderedProminent).foregroundStyle(.black).disabled(!model.device.dpiValues.contains(Int(dpi)))
+                    Button("Применить DPI") { model.setDPI(Int(dpi)) }.buttonStyle(.borderedProminent).foregroundStyle(Palette.onAccent).disabled(!model.device.dpiValues.contains(Int(dpi)))
                 }
             }.disabled(model.device.dpi == nil || model.busy || !model.conflicts.isEmpty)
             Card {
@@ -340,14 +341,14 @@ struct HardwareView: View {
                         HStack { Text("Сила отсечек"); Spacer(); Text("\(Int(torque))%").monospacedDigit().foregroundStyle(.secondary) }.font(.system(size: 13))
                         Slider(value: $torque, in: 1...100, step: 1)
                     }
-                    Button("Применить режим") { model.setWheel(mode, threshold: Int(threshold), torque: model.device.torque == nil ? nil : Int(torque)) }.buttonStyle(.borderedProminent).foregroundStyle(.black)
+                    Button("Применить режим") { model.setWheel(mode, threshold: Int(threshold), torque: model.device.torque == nil ? nil : Int(torque)) }.buttonStyle(.borderedProminent).foregroundStyle(Palette.onAccent)
                 }
             }.disabled(model.device.wheelMode == nil || model.busy || !model.conflicts.isEmpty)
             Card {
                 VStack(alignment: .leading, spacing: 20) {
                     SettingRow("Тактильный отклик", detail: "Для кольца действий и жестов.") { Toggle("Тактильный отклик", isOn: $haptics).labelsHidden().toggleStyle(.switch) }
                     HStack { Text("Интенсивность"); Slider(value: $intensity, in: 0...100, step: 25); Text("\(Int(intensity))%").monospacedDigit().frame(width: 40) }.font(.system(size: 13))
-                    HStack { Button("Применить") { model.setHaptics(haptics, intensity: Int(intensity)) }.buttonStyle(.borderedProminent).foregroundStyle(.black); Button("Почувствовать") { model.testHaptics() }.disabled(model.device.haptics != true) }
+                    HStack { Button("Применить") { model.setHaptics(haptics, intensity: Int(intensity)) }.buttonStyle(.borderedProminent).foregroundStyle(Palette.onAccent); Button("Почувствовать") { model.testHaptics() }.disabled(model.device.haptics != true) }
                 }
             }.disabled(model.device.haptics == nil || model.busy || !model.conflicts.isEmpty)
             Text("Изменения сохраняются только после подтверждения от мыши.").font(.caption).foregroundStyle(.secondary)
@@ -357,7 +358,19 @@ struct HardwareView: View {
 }
 struct Card<Content: View>: View {
     @ViewBuilder var content: Content
-    var body: some View { content.padding(20).frame(maxWidth: .infinity, alignment: .leading).background(surface, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.055), lineWidth: 1)) }
+    var body: some View { content.padding(20).frame(maxWidth: .infinity, alignment: .leading).background(Palette.surface, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).stroke(Palette.stroke, lineWidth: 1)) }
+}
+/// Accent choice on the «Приложение» page; changing it only saves preferences.
+struct AppearanceCard: View {
+    @Binding var accent: AccentColor
+    var body: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("ОФОРМЛЕНИЕ").font(.system(size: 9, weight: .semibold)).tracking(1.3).foregroundStyle(.secondary)
+                SettingRow("Акцентный цвет", detail: "\(accent.title). Выделение, переключатели, карта кнопок и кольцо действий.") { AccentPicker(selection: $accent) }
+            }
+        }
+    }
 }
 struct SettingRow<Content: View>: View {
     let title: String
@@ -372,15 +385,16 @@ struct SettingRow<Content: View>: View {
     }
 }
 struct Notice: View {
+    @Environment(\.accent) private var accent
     let icon: String
     let title: String
     let text: String
     var warning = false
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon).font(.system(size: 19)).foregroundStyle(warning ? .orange : accent).padding(.top, 2)
+            Image(systemName: icon).font(.system(size: 19)).foregroundStyle(warning ? Palette.warning : accent).padding(.top, 2)
             VStack(alignment: .leading, spacing: 7) { Text(title).font(.system(size: 13, weight: .medium)); Text(text).font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
             Spacer(minLength: 0)
-        }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background((warning ? Color.orange : accent).opacity(0.055), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke((warning ? Color.orange : accent).opacity(0.13)))
+        }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background((warning ? Palette.warning : accent).opacity(0.055), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke((warning ? Palette.warning : accent).opacity(0.13)))
     }
 }

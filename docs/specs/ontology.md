@@ -78,6 +78,8 @@
 | Confirmed state | Аппаратное состояние, прочитанное с устройства. | `DeviceSnapshot` |
 | Applied capture | Конфигурация захвата, подтверждённая чтением флагов после последнего успешного `configureCapture`. | `AppModel.appliedScroll`, `appliedButtons`, `eventButtons` |
 | Preferences | Все пользовательские настройки, ключ `preferences.v1`. | `Preferences` |
+| Accent color | Цвет выделения, переключателей, карты кнопок и кольца действий из готового набора; интерфейс всегда тёмный. Хранится в `preferences.v1`, по умолчанию мятный. | `AccentColor`, `Preferences.accent`, `EnvironmentValues.accent` |
+| Palette | Единственное место с цветами интерфейса: нейтральные поверхности, обводки, цвет предупреждений и текста на акценте. | `Palette`, `appTheme(_:)` |
 
 ## Разрешения и режимы работы
 

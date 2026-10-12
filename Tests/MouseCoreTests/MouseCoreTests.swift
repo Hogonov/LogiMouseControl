@@ -304,6 +304,32 @@ final class MouseCoreTests {
         XCTAssertEqual(restored.profiles, p.profiles)
         XCTAssertEqual(restored.buttons["416"], .ring)
     }
+    func testLegacyPreferencesWithoutAccentUseMint() throws {
+        let legacy = Data(#"{"scroll":{"enabled":true,"smooth":false,"natural":true,"horizontalNatural":true,"speed":2,"horizontalSpeed":1,"smoothness":0.07},"buttons":{"195":"gestures","83":"back"},"gestures":{"195":{"left":"copy"}},"ring":["missionControl","spotlight","screenshot","copy","paste","playPause"],"profiles":[],"desiredDPI":1600,"desiredIntensity":75}"#.utf8)
+        let p = try JSONDecoder().decode(Preferences.self, from: legacy)
+        XCTAssertEqual(p.accent, .mint)
+        XCTAssertEqual(p.buttons["83"], .back); XCTAssertEqual(p.scroll.speed, 2); XCTAssertEqual(p.desiredDPI, 1600)
+        XCTAssertEqual(p.gestureActions(for: 195).left, .copy)
+    }
+    func testAccentRoundTripAndUnknownValueKeepsSettings() throws {
+        var p = Preferences(); p.accent = .violet
+        XCTAssertEqual(try JSONDecoder().decode(Preferences.self, from: JSONEncoder().encode(p)).accent, .violet)
+        let future = try JSONDecoder().decode(Preferences.self, from: Data(#"{"buttons":{"83":"back"},"scroll":{"enabled":true,"smooth":true,"natural":false,"horizontalNatural":true,"speed":1.5,"horizontalSpeed":1,"smoothness":0.07},"accent":"futureColour"}"#.utf8))
+        XCTAssertEqual(future.accent, .mint)
+        XCTAssertEqual(future.buttons["83"], .back); XCTAssertFalse(future.scroll.natural); XCTAssertEqual(future.scroll.speed, 1.5)
+    }
+    func testAccentPaletteIsReadableWithBlackText() {
+        XCTAssertEqual(AccentColor.allCases, [.mint, .teal, .blue, .violet, .pink, .graphite])
+        let mint = AccentColor.mint.rgb
+        XCTAssertEqual(mint.red, 0.62, accuracy: 0.0001); XCTAssertEqual(mint.green, 0.91, accuracy: 0.0001); XCTAssertEqual(mint.blue, 0.74, accuracy: 0.0001)
+        XCTAssertEqual(Set(AccentColor.allCases.map(\.title)).count, AccentColor.allCases.count)
+        for accent in AccentColor.allCases {
+            XCTAssertFalse(accent.title.isEmpty)
+            for c in [accent.rgb.red, accent.rgb.green, accent.rgb.blue] { XCTAssertTrue((0...1).contains(c)) }
+            // Contrast of black text on the accent: (L + 0.05) / 0.05 ≥ 7 (WCAG AAA).
+            XCTAssertTrue((accent.relativeLuminance + 0.05) / 0.05 >= 7)
+        }
+    }
 }
 
 private func XCTAssertEqual<T: Equatable>(_ actual: T, _ expected: T, file: StaticString = #filePath, line: UInt = #line) { precondition(actual == expected, "Expected \(expected), got \(actual)", file: (file), line: line) }
@@ -351,6 +377,9 @@ private func XCTUnwrap<T>(_ value: T?) throws -> T { guard let value else { thro
         suite.testGestureSessionStartsSwipeOnlyForHorizontalTravel(); print("PASS testGestureSessionStartsSwipeOnlyForHorizontalTravel")
         suite.testDesktopSwipeSignFollowsAssignments(); print("PASS testDesktopSwipeSignFollowsAssignments")
         suite.testSpaceSwipeScalesWithDPI(); print("PASS testSpaceSwipeScalesWithDPI")
-        print("32 checks passed")
+        try suite.testLegacyPreferencesWithoutAccentUseMint(); print("PASS testLegacyPreferencesWithoutAccentUseMint")
+        try suite.testAccentRoundTripAndUnknownValueKeepsSettings(); print("PASS testAccentRoundTripAndUnknownValueKeepsSettings")
+        suite.testAccentPaletteIsReadableWithBlackText(); print("PASS testAccentPaletteIsReadableWithBlackText")
+        print("35 checks passed")
     }
 }
