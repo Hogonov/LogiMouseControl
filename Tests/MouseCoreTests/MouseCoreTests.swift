@@ -196,6 +196,87 @@ final class MouseCoreTests {
         XCTAssertEqual(MouseAction.previousDesktop.rawValue, "previousDesktop")
         XCTAssertFalse(MouseAction.gestureChoices.contains(.system)); XCTAssertFalse(MouseAction.gestureChoices.contains(.gestures))
     }
+    func testSpaceSwipeFollowsMovementAndChainsDesktops() {
+        var swipe = SpaceSwipe(sign: 1, countsPerSpace: 800)
+        XCTAssertEqual(swipe.move(dx: 400, at: 0), [SwipeStep(.began, progress: 0.5)])
+        XCTAssertEqual(swipe.move(dx: 200, at: 0.01), [SwipeStep(.changed, progress: 0.75)])
+        // Crossing a whole desktop ends the segment and continues with the remainder.
+        let crossed = swipe.move(dx: 400, at: 0.02)
+        XCTAssertEqual(crossed.map(\.phase), [.ended, .began])
+        XCTAssertEqual(crossed[0].progress, 1); XCTAssertTrue(crossed[0].velocity >= 1)
+        XCTAssertEqual(crossed[1].progress, 0.25)
+        // One large step crosses two desktops; mirrored sign goes the other way.
+        var mirrored = SpaceSwipe(sign: -1, countsPerSpace: 800)
+        _ = mirrored.move(dx: 80, at: 0)
+        let far = mirrored.move(dx: 1600, at: 0.01)
+        XCTAssertEqual(far.map(\.phase), [.ended, .began, .ended, .began])
+        XCTAssertEqual(far[0].progress, -1); XCTAssertTrue(far[0].velocity <= -1)
+        XCTAssertEqual(far[3].progress, -0.1, accuracy: 1e-9)
+        XCTAssertEqual(mirrored.cancel(), [SwipeStep(.cancelled, progress: far[3].progress)])
+        XCTAssertEqual(mirrored.cancel(), [])
+        var invalid = SpaceSwipe(sign: 1, countsPerSpace: 800)
+        XCTAssertEqual(invalid.move(dx: .nan, at: 0), []); XCTAssertFalse(invalid.began)
+    }
+    func testSpaceSwipeReleaseUsesRecentVelocity() {
+        var forward = SpaceSwipe(sign: 1, countsPerSpace: 800)
+        _ = forward.move(dx: 100, at: 0); _ = forward.move(dx: 100, at: 0.01)
+        let finished = forward.release(at: 0.02)
+        XCTAssertEqual(finished.map(\.phase), [.ended]); XCTAssertTrue(finished[0].velocity > 0)
+        XCTAssertEqual(forward.release(at: 0.03), [])
+        var back = SpaceSwipe(sign: 1, countsPerSpace: 800)
+        _ = back.move(dx: 300, at: 0); _ = back.move(dx: -100, at: 0.01); _ = back.move(dx: -100, at: 0.02)
+        XCTAssertEqual(back.release(at: 0.03).map(\.phase), [.cancelled])
+        var resting = SpaceSwipe(sign: 1, countsPerSpace: 800)
+        _ = resting.move(dx: 300, at: 0); _ = resting.move(dx: -100, at: 0.01)
+        XCTAssertEqual(resting.release(at: 0.5), [SwipeStep(.ended, progress: 0.25, velocity: 0)])
+    }
+    func testGestureSessionStartsSwipeOnlyForHorizontalTravel() {
+        var session = GestureSession(discardFirst: false, swipeSign: 1, countsPerSpace: 800)
+        XCTAssertEqual(session.add(dx: 50, dy: 0, at: 0, allowSwipe: true), [])
+        XCTAssertEqual(session.add(dx: 20, dy: 0, at: 0.01, allowSwipe: true), [SwipeStep(.began, progress: 70.0 / 800)])
+        XCTAssertTrue(session.isSwiping)
+        XCTAssertEqual(session.add(dx: 0, dy: 500, at: 0.02, allowSwipe: true).map(\.phase), [.changed])
+        guard case .swipe(let steps, .right) = session.release(at: 0.03) else { return XCTFail("Expected swipe") }
+        XCTAssertEqual(steps.map(\.phase), [.ended])
+        // Vertical first: no swipe, the direction is resolved on release as before.
+        var vertical = GestureSession(discardFirst: false, swipeSign: 1, countsPerSpace: 800)
+        _ = vertical.add(dx: 0, dy: -70, at: 0, allowSwipe: true)
+        XCTAssertEqual(vertical.add(dx: -500, dy: 0, at: 0.01, allowSwipe: true), [])
+        XCTAssertEqual(vertical.release(at: 0.02), .action(.left))
+        var click = GestureSession(discardFirst: false, swipeSign: 1, countsPerSpace: 800)
+        _ = click.add(dx: 30, dy: 10, at: 0, allowSwipe: true)
+        XCTAssertEqual(click.release(at: 0.01), .action(.click))
+        // No desktop pair, or another control swiping: discrete gesture.
+        var plain = GestureSession(discardFirst: false, swipeSign: nil, countsPerSpace: 800)
+        XCTAssertEqual(plain.add(dx: 200, dy: 0, at: 0, allowSwipe: true), [])
+        XCTAssertEqual(plain.release(at: 0.01), .action(.right))
+        var second = GestureSession(discardFirst: false, swipeSign: 1, countsPerSpace: 800)
+        XCTAssertEqual(second.add(dx: 200, dy: 0, at: 0, allowSwipe: false), [])
+        XCTAssertFalse(second.isSwiping)
+        // The haptic panel's initial jump never reaches the swipe.
+        var panel = GestureSession(discardFirst: true, swipeSign: 1, countsPerSpace: 800)
+        XCTAssertEqual(panel.add(dx: 30000, dy: 0, at: 0, allowSwipe: true), [])
+        XCTAssertEqual(panel.add(dx: -80, dy: 0, at: 0.01, allowSwipe: true), [SwipeStep(.began, progress: -0.1)])
+        XCTAssertEqual(panel.cancel(), [SwipeStep(.cancelled, progress: -0.1)])
+        XCTAssertEqual(panel.cancel(), [])
+    }
+    func testDesktopSwipeSignFollowsAssignments() {
+        XCTAssertEqual(GestureActions().desktopSwipeSign, 1)
+        var mirrored = GestureActions(); mirrored[.left] = .nextDesktop; mirrored[.right] = .previousDesktop
+        XCTAssertEqual(mirrored.desktopSwipeSign, -1)
+        var other = GestureActions(); other[.left] = .back
+        XCTAssertEqual(other.desktopSwipeSign, nil)
+        var same = GestureActions(); same[.left] = .nextDesktop
+        XCTAssertEqual(same.desktopSwipeSign, nil)
+    }
+    func testSpaceSwipeScalesWithDPI() {
+        XCTAssertEqual(SpaceSwipe.countsPerSpace(dpi: 1000), 800)
+        XCTAssertEqual(SpaceSwipe.countsPerSpace(dpi: 2000), 1600)
+        XCTAssertEqual(SpaceSwipe.countsPerSpace(dpi: nil), 800)
+        XCTAssertEqual(SpaceSwipe.countsPerSpace(dpi: 0), 800)
+        var guarded = SpaceSwipe(sign: 1, countsPerSpace: 0)
+        XCTAssertEqual(guarded.move(dx: 400, at: 0), [SwipeStep(.began, progress: 0.5)])
+    }
     func testCorruptPreferencesAreClampedAndRingIsRepaired() {
         var p = Preferences(); p.scroll.speed = .infinity; p.scroll.smoothness = -2; p.ring = [.mouse(.ring)]
         p.desiredDPI = 999999; p.desiredThreshold = 0; p.desiredIntensity = -1; p.sanitize()
@@ -226,6 +307,7 @@ final class MouseCoreTests {
 }
 
 private func XCTAssertEqual<T: Equatable>(_ actual: T, _ expected: T, file: StaticString = #filePath, line: UInt = #line) { precondition(actual == expected, "Expected \(expected), got \(actual)", file: (file), line: line) }
+private func XCTAssertEqual(_ actual: Double, _ expected: Double, accuracy: Double, file: StaticString = #filePath, line: UInt = #line) { precondition(abs(actual - expected) <= accuracy, "Expected \(expected), got \(actual)", file: (file), line: line) }
 private func XCTAssertNil<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) { precondition(value == nil, "Expected nil", file: (file), line: line) }
 private func XCTAssertFalse(_ value: Bool, file: StaticString = #filePath, line: UInt = #line) { precondition(!value, "Expected false", file: (file), line: line) }
 private func XCTAssertTrue(_ value: Bool, file: StaticString = #filePath, line: UInt = #line) { precondition(value, "Expected true", file: (file), line: line) }
@@ -264,6 +346,11 @@ private func XCTUnwrap<T>(_ value: T?) throws -> T { guard let value else { thro
         try suite.testGestureActionsRoundTripPerControl(); print("PASS testGestureActionsRoundTripPerControl")
         try suite.testInvalidGestureActionsAreRepaired(); print("PASS testInvalidGestureActionsAreRepaired")
         suite.testDesktopSwitchActionsAreSelectable(); print("PASS testDesktopSwitchActionsAreSelectable")
-        print("27 checks passed")
+        suite.testSpaceSwipeFollowsMovementAndChainsDesktops(); print("PASS testSpaceSwipeFollowsMovementAndChainsDesktops")
+        suite.testSpaceSwipeReleaseUsesRecentVelocity(); print("PASS testSpaceSwipeReleaseUsesRecentVelocity")
+        suite.testGestureSessionStartsSwipeOnlyForHorizontalTravel(); print("PASS testGestureSessionStartsSwipeOnlyForHorizontalTravel")
+        suite.testDesktopSwipeSignFollowsAssignments(); print("PASS testDesktopSwipeSignFollowsAssignments")
+        suite.testSpaceSwipeScalesWithDPI(); print("PASS testSpaceSwipeScalesWithDPI")
+        print("32 checks passed")
     }
 }

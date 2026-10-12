@@ -60,6 +60,9 @@ https://github.com/noah-nuebling/mac-mouse-fix
 Reference revision: 8538a5cadcd3afc30d4bce090d80fda63af49fe6.
 
 Mac Mouse Fix was studied as a behavioral reference for smooth scrolling.
+For smooth desktop swipes, `Helper/Core/Touch/TouchSimulator.m` at revision
+`f92d2d53a` was read only for facts about the Dock swipe event format
+(cumulative progress, end versus cancel phase); no code was copied.
 Its source is under the custom MMF License. No MMF source files, assets,
 algorithms, private API bridges, monetization or update components are copied
 into this application. The time-based exponential scroll integrator is an

@@ -194,13 +194,22 @@ public struct GestureActions: Codable, Equatable {
             switch direction { case .up: up = newValue; case .down: down = newValue; case .left: left = newValue; case .right: right = newValue; case .click: click = newValue }
         }
     }
+    /// +1 when moving right goes to the desktop on the right, −1 when mirrored;
+    /// nil unless left and right are the two desktop actions (no smooth swipe then).
+    public var desktopSwipeSign: Double? {
+        switch (left, right) {
+        case (.previousDesktop, .nextDesktop): return 1
+        case (.nextDesktop, .previousDesktop): return -1
+        default: return nil
+        }
+    }
     public mutating func sanitize() {
         let defaults = GestureActions()
         for direction in GestureDirection.allCases where !MouseAction.gestureChoices.contains(self[direction]) { self[direction] = defaults[direction] }
     }
 }
 public struct GestureAccumulator {
-    private var x = 0.0, y = 0.0
+    public private(set) var x = 0.0, y = 0.0
     private var discardFirst: Bool
     public init(discardFirst: Bool) { self.discardFirst = discardFirst }
     public mutating func add(dx: Double, dy: Double) {

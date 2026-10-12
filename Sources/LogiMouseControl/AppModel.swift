@@ -23,6 +23,7 @@ final class AppModel: ObservableObject {
     private let scroll = ScrollEngine()
     private let executor = ActionExecutor()
     private let ring = RingController()
+    private let swipe = DockSwipe()
     private var monitor: Timer?
     private var workspaceObservers: [NSObjectProtocol] = []
     private var frontmostID = ""
@@ -31,7 +32,7 @@ final class AppModel: ObservableObject {
     private var shuttingDown = false
     private var sleeping = false
     private var held: Set<UInt16> = []
-    private var gestureState: [UInt16: GestureAccumulator] = [:]
+    private var gestureState: [UInt16: GestureSession] = [:]
     private var startup = true
     private var watchdogTick = 0
     private var eventButtons: [String: MouseAction] = [:]
@@ -50,7 +51,7 @@ final class AppModel: ObservableObject {
         service.onError = { [weak self] message in self?.error = message }
         service.onDisconnected = { [weak self] in
             guard let self else { return }
-            self.active = false; self.scroll.stop(); self.ring.close(); self.held = []; self.gestureState = [:]
+            self.active = false; self.scroll.stop(); self.ring.close(); self.held = []; self.cancelGestures()
             self.appliedScroll = nil; self.appliedButtons = [:]
             self.connectedSince = nil; self.status = "Ожидаем подключения MX Master 4"
         }
@@ -84,6 +85,8 @@ final class AppModel: ObservableObject {
     var effectiveScroll: ScrollPreferences { preferences.profiles.first { $0.id == frontmostID }?.scroll ?? preferences.scroll }
     var effectiveButtons: [String: MouseAction] { preferences.profiles.first { $0.id == frontmostID }?.buttons ?? preferences.buttons }
     var canControl: Bool { device.connected && accessibility && inputMonitoring && conflicts.isEmpty && !paused && !sleeping && !shuttingDown }
+    /// Desktops follow the mouse during a left/right gesture (macOS 27+); otherwise they switch on release.
+    var smoothDesktopSwipe: Bool { swipe.isAvailable }
     private func didConnect() {
         connectedSince = Date(); error = nil
         // Default useful MX actions, only for controls actually advertised by this device.
@@ -151,11 +154,13 @@ final class AppModel: ObservableObject {
     func configure() {
         guard !shuttingDown else { return }
         if captureBusy { captureDirty = true; return }
-        scroll.stop(); held = []; gestureState = [:]
+        scroll.stop()
         scroll.preferences = effectiveScroll
         activeProfileName = preferences.profiles.first { $0.id == frontmostID }?.name ?? "Общий профиль"
-        guard device.connected else { return }
+        guard device.connected else { held = []; cancelGestures(); return }
+        // Unchanged capture keeps held controls: switching desktops activates other apps mid-gesture.
         if canControl && active && appliedScroll == effectiveScroll.enabled && appliedButtons == effectiveButtons { return }
+        held = []; cancelGestures()
         captureBusy = true
         if canControl {
             let buttons = effectiveButtons
@@ -251,26 +256,48 @@ final class AppModel: ObservableObject {
                 for id in next.subtracting(held) {
                     scroll.stop()
                     let action = eventButtons[String(id)] ?? .system
-                    if action == .gestures { gestureState[id] = GestureAccumulator(discardFirst: id == 0x1a0) }
-                    else { executor.execute(action) }
+                    if action == .gestures {
+                        let sign = swipe.isAvailable ? preferences.gestureActions(for: id).desktopSwipeSign : nil
+                        gestureState[id] = GestureSession(discardFirst: id == 0x1a0, swipeSign: sign, countsPerSpace: SpaceSwipe.countsPerSpace(dpi: device.dpi))
+                    } else { executor.execute(action) }
                 }
                 for id in held.subtracting(next) {
-                    if let gesture = gestureState.removeValue(forKey: id) {
-                        let direction = gesture.direction
+                    guard var gesture = gestureState.removeValue(forKey: id) else { continue }
+                    switch gesture.release(at: ProcessInfo.processInfo.systemUptime) {
+                    case .action(let direction):
                         let action = preferences.gestureActions(for: id)[direction]
                         lastGesture = (direction, action)
                         executor.execute(action)
                         if action != .none { service.pulse() }
+                    case .swipe(let steps, let direction):
+                        lastGesture = (direction, preferences.gestureActions(for: id)[direction])
+                        post(steps)
                     }
                 }
                 held = next
             } else if event.function == 1, event.payload.count >= 4 {
-                for id in Array(gestureState.keys) { gestureState[id]?.add(dx: Double(signedWord(event.payload)), dy: Double(signedWord(event.payload, 2))) }
+                let now = ProcessInfo.processInfo.systemUptime
+                for id in Array(gestureState.keys) {
+                    // Only one control drives the Dock at a time.
+                    let allowSwipe = !gestureState.contains { $0.key != id && $0.value.isSwiping }
+                    if let steps = gestureState[id]?.add(dx: Double(signedWord(event.payload)), dy: Double(signedWord(event.payload, 2)), at: now, allowSwipe: allowSwipe) { post(steps) }
+                }
             }
         }
     }
+    private func post(_ steps: [SwipeStep]) {
+        for step in steps {
+            swipe.post(step)
+            if step.phase == .ended { service.pulse() }
+        }
+    }
+    /// A started Dock swipe must always end, or the desktop stays mid-transition (INV-16).
+    private func cancelGestures() {
+        for id in Array(gestureState.keys) { if let steps = gestureState[id]?.cancel() { post(steps) } }
+        gestureState = [:]
+    }
     func shutdown(_ completion: @escaping () -> Void) {
-        shuttingDown = true; active = false; monitor?.invalidate(); scroll.stop(); ring.close()
+        shuttingDown = true; active = false; monitor?.invalidate(); scroll.stop(); ring.close(); cancelGestures()
         executor.cancelPendingActions()
         service.release { [weak self] success in
             guard let self else { completion(); return }

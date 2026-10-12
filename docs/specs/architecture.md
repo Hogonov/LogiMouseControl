@@ -3,7 +3,7 @@
 Версия: 2.1.0
 Дата: 2026-10-12
 Статус: действующая
-Последнее изменение: [CH-0002](changes/0002-configurable-gestures/spec.md) — настраиваемые жесты, `SymbolicShortcut`. Сверка с кодом: CH-0001, коммит `ef48295`, и затронутые CH-0002 разделы.
+Последнее изменение: [CH-0003](changes/0003-smooth-desktop-swipe/spec.md) — плавное переключение рабочих столов (`DockSwipe`, `SpaceSwipe`, `GestureSession`, [ADR-0002](adr/0002-dock-swipe-synthesis.md)). Сверка с кодом: CH-0001, коммит `ef48295`, и затронутые CH-0002 и CH-0003 разделы.
 
 Документ описывает приложение таким, какое оно есть в коде. Процесс работы с изменениями описан в [README.md](README.md), термины — в [ontology.md](ontology.md).
 
@@ -28,7 +28,7 @@ LogiMouseControl — локальное приложение для macOS 14+, �
 - подключение только к `046D:B042` (`HIDTransport.start()`), чтение функций и кнопок (`DeviceService.refresh(discover:)`);
 - собственная плавная прокрутка вертикального и бокового колёс (`ScrollEngine`, `ScrollIntegrator`);
 - DPI, SmartShift/ratchet/free-spin, порог и сила отсечек, виброотклик (`DeviceService.setDPI`, `setWheel`, `setHaptics`, `pulse`);
-- назначение действий кнопкам, жесты с действием для каждого направления, переключение рабочих столов, кольцо действий из шести пунктов, запуск приложений из кольца (`AppModel.handle(_:)`, `ActionExecutor`, `RingController`);
+- назначение действий кнопкам, жесты с действием для каждого направления, переключение рабочих столов (на macOS 27+ плавное, вслед за мышью), кольцо действий из шести пунктов, запуск приложений из кольца (`AppModel.handle(_:)`, `ActionExecutor`, `RingController`);
 - профили приложений для прокрутки и кнопок по bundle identifier (`AppModel.effectiveScroll`, `effectiveButtons`);
 - Easy-Switch, заряд, запуск при входе (`DeviceService.switchHost`, `AppModel.setLogin`);
 - аварийное восстановление через дочерний процесс (`CaptureGuardian`);
@@ -42,7 +42,7 @@ LogiMouseControl — локальное приложение для macOS 14+, �
 
 | Target | Тип | Путь | Зависит от | Назначение |
 |---|---|---|---|---|
-| `MouseCore` | library | `Sources/MouseCore` | только `Foundation` | HID++-пакеты, настройки и действия, интегратор прокрутки, накопитель жестов, каталог изображений |
+| `MouseCore` | library | `Sources/MouseCore` | только `Foundation` | HID++-пакеты, настройки и действия, интегратор прокрутки, накопитель жестов, математика свайпа рабочих столов, каталог изображений |
 | `LogiMouseControl` | executable | `Sources/LogiMouseControl` | `MouseCore`; AppKit, IOKit, ApplicationServices, ServiceManagement; ресурсы `DeviceImages` | приложение, помощник восстановления, диагностика |
 | `MouseCoreChecks` | executable | `Tests/MouseCoreTests` | `MouseCore` | 27 самописных проверок ядра без XCTest |
 | `SymbolicShortcutChecks` | не SwiftPM | `Tests/SymbolicShortcutChecks` | исходник `SymbolicShortcut.swift` | 13 проверок с подставными зависимостями; собирается `swiftc` в `scripts/test.sh` |
@@ -63,8 +63,9 @@ LogiMouseControl — локальное приложение для macOS 14+, �
 | `ScrollEngine` | [ScrollEngine.swift](../../Sources/LogiMouseControl/ScrollEngine.swift) | Пиксельные `CGEvent` прокрутки, таймер 120 Гц, прерывание чужим вводом | `ScrollIntegrator` | main |
 | `ActionExecutor` | [ActionExecutor.swift](../../Sources/LogiMouseControl/ActionExecutor.swift) | Сочетания клавиш, медиаклавиши, системные приложения, системные сочетания (Spotlight, окна приложения, рабочий стол, рабочие столы слева/справа) | `SymbolicShortcut`, `NSWorkspace`, `CGEvent` | main |
 | `SymbolicShortcut` | [SymbolicShortcut.swift](../../Sources/LogiMouseControl/SymbolicShortcut.swift) | Один symbolic hotkey WindowServer (64, 33, 36, 79, 81) через динамически загружаемый CGS: чтение действующего сочетания, запасное значение macOS по умолчанию, временное включение и возврат | `dlopen`/`dlsym` | main |
+| `DockSwipe` | [DockSwipe.swift](../../Sources/LogiMouseControl/DockSwipe.swift) | События DockSwipe для плавного перехода между рабочими столами на macOS 27+: `IOHIDEvent`, вложенный в `CGEvent` типа 30 (ADR-0002) | `dlopen`/`dlsym` (IOKit, SkyLight), `CGEvent` | main |
 | `RingController` | [RingController.swift](../../Sources/LogiMouseControl/RingController.swift) | Неактивирующая `NSPanel` с `ActionRingView` | SwiftUI, `NSEvent` monitors | main |
-| `MouseCore` | [Sources/MouseCore](../../Sources/MouseCore/) | `HIDPacket`, `HIDFailure`, `reportingPayload`, `WheelMode`, `Preferences`, `ScrollIntegrator`, `GestureAccumulator`, `GestureDirection`, `GestureActions`, `MouseIdentity`, `MouseArtworkManifest` | `Foundation` | любой |
+| `MouseCore` | [Sources/MouseCore](../../Sources/MouseCore/) | `HIDPacket`, `HIDFailure`, `reportingPayload`, `WheelMode`, `Preferences`, `ScrollIntegrator`, `GestureAccumulator`, `GestureDirection`, `GestureActions`, `GestureSession`, `SpaceSwipe`, `SwipeStep`, `MouseIdentity`, `MouseArtworkManifest` | `Foundation` | любой |
 
 ```mermaid
 flowchart LR
@@ -79,6 +80,7 @@ flowchart LR
     SE["ScrollEngine"]
     AE["ActionExecutor"]
     SS["SymbolicShortcut"]
+    DW["DockSwipe"]
     CG["CaptureGuardian"]
   end
   T["HIDTransport · IOHIDManager"]
@@ -86,13 +88,15 @@ flowchart LR
   UD[("UserDefaults preferences.v1")]
   Mouse[["MX Master 4 046D:B042"]]
   Child[["Процесс --recover-on-exit"]]
-  OS[["macOS: CGEvent, NSWorkspace, CGS, SMAppService"]]
+  OS[["macOS: CGEvent, NSWorkspace, CGS, SkyLight, SMAppService"]]
   App --> Model
   Views --> Model
   Model --> Ring
   Model --> DS
   Model --> SE
   Model --> AE
+  Model --> DW
+  DW --> OS
   Model --> UD
   AE --> SS
   AE --> OS
@@ -138,10 +142,13 @@ flowchart TD
   F -- "0x2121 fn0" --> V["ScrollEngine.feed(vertical:)"]
   F -- "0x2150 fn0" --> HZ["ScrollEngine.feed(horizontal:)"]
   F -- "0x1B04 fn0" --> B["Разница нажатых CID"]
-  F -- "0x1B04 fn1" --> XY["GestureAccumulator.add"]
-  B -- "нажата, действие gestures" --> GA["Новый GestureAccumulator"]
+  F -- "0x1B04 fn1" --> XY["GestureSession.add"]
+  XY -- "свайп начат" --> DW["DockSwipe.post; на ended — pulse"]
+  B -- "нажата, действие gestures" --> GA["Новая GestureSession"]
   B -- "нажата, другое действие" --> AE["ActionExecutor.execute"]
-  B -- "отпущена кнопка жестов" --> GE["Preferences.gestureActions → ActionExecutor.execute + DeviceService.pulse"]
+  B -- "отпущена кнопка жестов" --> GR{"GestureSession.release"}
+  GR -- ".action" --> GE["Preferences.gestureActions → ActionExecutor.execute + DeviceService.pulse"]
+  GR -- ".swipe" --> DW
   V --> TM["Таймер 120 Гц: ScrollIntegrator.advance → CGEvent"]
   HZ --> TM
 ```
@@ -150,6 +157,7 @@ flowchart TD
 - `ScrollEngine.feed` учитывает скорость и направление из `ScrollPreferences`, запускает `DispatchSourceTimer` на main с периодом 1/120 с и останавливает его через 0,09 с без ввода. События помечаются `eventSourceUserData = ScrollEngine.marker`; глобальный монитор нажатий и чужой точной прокрутки вызывает `stop()`.
 - Действие берётся из `AppModel.eventButtons` — копии назначений, подтверждённых последним успешным `configureCapture`. Нажатие любой кнопки останавливает инерцию прокрутки.
 - Для тактильной панели (`0x1A0`) первый сдвиг Raw XY отбрасывается (`GestureAccumulator(discardFirst:)`). Порог жеста — 60 единиц; меньший сдвиг — направление `click`. При отпускании `AppModel` берёт действие из `Preferences.gestureActions(for: CID)[direction]` (общие для всех профилей), выполняет его через `ActionExecutor.execute` и, кроме «Ничего», вызывает `pulse()`. Последний жест хранится в `AppModel.lastGesture` только в памяти.
+- Плавный свайп рабочих столов (CH-0003). `GestureSession` получает знак свайпа, только если `DockSwipe.isAvailable` (macOS 27+ и найдены функции IOKit/SkyLight) и «влево/вправо» этой кнопки — пара «Рабочий стол слева/справа» (`GestureActions.desktopSwipeSign`: +1 или −1 для зеркальной пары). Если первым порог 60 проходит горизонтальный сдвиг, `SpaceSwipe` выдаёт began и затем changed с накопленным прогрессом в рабочих столах (800 единиц Raw XY на стол при 1000 DPI, пропорционально `DeviceSnapshot.dpi`). На каждом целом столе — ended с прогрессом ±1 и began с остатком, поэтому одно движение проходит несколько столов. Отпускание даёт ended со сглаженной скоростью (столов в секунду; 0 после 0,15 с покоя) или cancelled при рывке назад; дискретное действие тогда не выполняется. Если первым порог прошёл вертикальный сдвиг, сессия работает как раньше. Свайп ведёт только одна сессия одновременно. `DockSwipe.post` на began читает `com.apple.swipescrolldirection` и при естественной прокрутке меняет знак прогресса и скорости HID, отправляет `CGEvent` типа 30 с маркером `ScrollEngine.marker` в `.cgSessionEventTap`. Каждое ended сопровождается `pulse()`.
 - Системные действия «Окна приложения», «Показать рабочий стол», «Рабочий стол слева/справа» и Spotlight отправляют сочетание, которое сообщает WindowServer (`CGSGetSymbolicHotKeyValue`), через `.hidSystemState` в `.cgSessionEventTap`. Файл `com.apple.symbolichotkeys` не читается: в нём может не быть неизменённых значений по умолчанию. Если CGS не вернул сочетание, используется значение macOS по умолчанию с флагом Fn (`0x840000` для стрелок). Mission Control открывается через `NSWorkspace`.
 
 ### 4.3. Изменение аппаратной настройки
@@ -233,6 +241,8 @@ sequenceDiagram
 | `process`, `input` | `CaptureGuardian` | очередь `DeviceService` | вызывается только из `DeviceService.checkpoint()` и `finishGuardian` |
 | Интеграторы, таймер, монитор событий | `ScrollEngine` | main | таймер на `.main` |
 | `lastGesture` | `AppModel` | main | только в памяти |
+| `gestureState` (`GestureSession` со `SpaceSwipe`) | `AppModel` | main | сбрасывается через `cancelGestures()`, который отправляет cancelled начатому свайпу |
+| `hidSign` (знак HID на сегмент) | `DockSwipe` | main | — |
 | `needsRestore`, `generation` (у каждого экземпляра) | `SymbolicShortcut` | main | восстановление планируется через `DispatchQueue.main.asyncAfter` |
 | Панель и мониторы | `RingController` | main | — |
 
@@ -245,16 +255,16 @@ sequenceDiagram
 | Запуск | `AppEntry.main()` → `LogiMouseControlApp` → `AppModel.init()` | Чтение настроек, подписка на `NSWorkspace`, `transport.start()`, сторож каждые 2 с |
 | Появление окна | `MainWindowContent.onAppear` | `delegate.model = model`, политика активации `.regular` |
 | Закрытие окна | `MainWindowCloseObserver.windowWillClose` | Политика `.accessory`; обработка продолжается, приложение остаётся в строке меню (`LSUIElement`) |
-| Пауза | `AppModel.togglePause()`, `pause()` | `configure()` → `release`; пауза не сохраняется между запусками |
+| Пауза | `AppModel.togglePause()`, `pause()` | `configure()` → `cancelGestures()` и `release`; пауза не сохраняется между запусками |
 | Автоматическая пауза | `ScrollEngine.onFailure` (пропал Универсальный доступ), сторож (помощник недоступен) | `pause()` |
-| Сон, выход из сеанса | `willSleepNotification`, `sessionDidResignActiveNotification` | `sleeping = true`, остановка прокрутки и кольца, `configure()` → `release` |
+| Сон, выход из сеанса | `willSleepNotification`, `sessionDidResignActiveNotification` | `sleeping = true`, остановка прокрутки и кольца, `configure()` → `cancelGestures()` и `release` |
 | Пробуждение, возврат в сеанс | `didWakeNotification`, `sessionDidBecomeActiveNotification` | Через 1 с `refresh()` и `configure()` |
-| Отключение мыши | `HIDTransport.removed` → `DeviceService.onDisconnected` | `AppModel` сбрасывает `active`, захват и прокрутку; `DeviceService` забывает исходные состояния и отправляет помощнику пустой снимок |
+| Отключение мыши | `HIDTransport.removed` → `DeviceService.onDisconnected` | `AppModel` сбрасывает `active`, захват и прокрутку, отменяет начатый свайп; `DeviceService` забывает исходные состояния и отправляет помощнику пустой снимок |
 | Переподключение | Сторож: `transport.retry()` → `attach` → `refresh(discover: true)` → `didConnect()` | Повтор сохранённых аппаратных настроек и захвата |
-| Смена активного приложения | `didActivateApplicationNotification` | Новый профиль через `configure()` |
+| Смена активного приложения | `didActivateApplicationNotification` | Новый профиль через `configure()`. Если захват не меняется, `held` и жесты сохраняются (переход между рабочими столами сам активирует другие приложения); иначе начатый свайп отменяется |
 | Изменение разрешений или конфликтов | Сторож сравнивает с прошлым значением | `configure()` |
 | Easy-Switch | `AppModel.switchHost` → `DeviceService.switchHost` | `restoreAll()`, затем `notify` 0x1814 |
-| Выход | `AppDelegate.applicationShouldTerminate` → `AppModel.shutdown` | Остановка всего, `cancelPendingActions()` (возврат всех временно включённых системных сочетаний), `release`, `finishGuardian(clean: success)`, `transport.stop()`; ответ `.terminateLater` |
+| Выход | `AppDelegate.applicationShouldTerminate` → `AppModel.shutdown` | Остановка всего, `cancelGestures()`, `cancelPendingActions()` (возврат всех временно включённых системных сочетаний), `release`, `finishGuardian(clean: success)`, `transport.stop()`; ответ `.terminateLater` |
 | Авария основного процесса | EOF в pipe помощника без `clean` | `CaptureGuardian.run()` ждёт подключения до 15 с и вызывает `restoreRecovery` |
 
 ```mermaid
@@ -351,7 +361,7 @@ stateDiagram-v2
 13. **INV-13.** Снимок восстановления существует только в памяти и в pipe помощника; не пишется на диск и в журналы.
 14. **INV-14.** Данные `preferences.v1`, сохранённые предыдущей версией, читаются новой без потери настроек. Новые поля — необязательные или с ручным `init(from:)` через `decodeIfPresent`; ключи и значения перечислений не переименовываются и не удаляются. Несовместимое изменение — только через новый ключ, миграцию, полную спецификацию и ADR.
 15. **INV-15.** Bundle ID, идентификатор подписи и сертификат не меняются без ADR: смена сбрасывает разрешения macOS у пользователя.
-16. **INV-16.** Пауза, сон, выход из сеанса, отключение мыши и выход из приложения останавливают прокрутку, закрывают кольцо и освобождают контролы; при аварии их восстанавливает помощник.
+16. **INV-16.** Пауза, сон, выход из сеанса, отключение мыши и выход из приложения останавливают прокрутку, закрывают кольцо, завершают начатый свайп рабочих столов фазой cancelled (ADR-0002) и освобождают контролы; при аварии контролы восстанавливает помощник.
 
 ## Проверки качества
 
@@ -399,6 +409,8 @@ stateDiagram-v2
 | U-10 | Используется ли `NSBluetoothAlwaysUsageDescription` | Приложение работает через IOKit HID, не CoreBluetooth | Не проверялось |
 | U-11 | Остаётся ли включённым системное сочетание, временно включённое `SymbolicShortcut`, если процесс аварийно завершится в окне 0,25 с | Помощник восстанавливает только HID; отключённые пользователем ⌃←/⌃→/⌃↓ могут остаться включёнными | Не проверялось; при необходимости — отдельное изменение |
 | U-12 | Реагирует ли WindowServer macOS 27 на синтезированные сочетания рабочих столов | От этого зависит переключение рабочих столов (CH-0002, M-01) | Пользователь на мыши |
+| U-13 | Что делает Dock, если процесс аварийно завершился посреди свайпа (без ended/cancelled) | Рабочий стол может остаться посередине перехода; помощник восстанавливает только HID | Не проверялось; при необходимости — отдельное изменение |
+| U-14 | Принимает ли Dock на macOS 27 изменения прогресса, единицы скорости и новый сегмент сразу после конца предыдущего | От этого зависят плавность, доводка рывком и прохождение нескольких столов (CH-0003, M-01, M-02) | Пользователь на мыши |
 
 ## Предлагаемые улучшения
 

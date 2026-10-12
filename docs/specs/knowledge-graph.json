@@ -4,7 +4,7 @@
     "version": "2.0.0",
     "created": "2026-09-22",
     "updated": "2026-10-12",
-    "updatedBy": "CH-0002",
+    "updatedBy": "CH-0003",
     "verifiedAgainstCommit": "ef48295",
     "project": "LogiMouseControl",
     "type": "initial-discovery"
@@ -56,7 +56,7 @@
       "CLAUDE.md",
       ".claude/settings.json"
     ],
-    "testingPattern": "Executable checks built from pure MouseCore logic (MouseCoreChecks, 27 checks) plus fake-dependent symbolic-hotkey regression checks (SymbolicShortcutChecks, 13 checks); no XCTest; no automated physical mouse input or assigned actions",
+    "testingPattern": "Executable checks built from pure MouseCore logic (MouseCoreChecks, 32 checks) plus fake-dependent symbolic-hotkey regression checks (SymbolicShortcutChecks, 13 checks); no XCTest; no automated physical mouse input or assigned actions",
     "verificationCommands": [
       "./scripts/test.sh",
       "swift build --disable-sandbox --scratch-path .build --product LogiMouseControl",
@@ -112,6 +112,7 @@
           "preferences and action models",
           "time-based scroll integration",
           "gesture accumulation",
+          "smooth desktop swipe math (SpaceSwipe, GestureSession)",
           "device artwork metadata"
         ]
       },
@@ -137,7 +138,7 @@
       "pure core logic isolated from platform UI"
     ],
     "threading": {
-      "main": ["AppModel", "views", "ScrollEngine", "ActionExecutor", "SymbolicShortcut", "RingController", "IOKit callbacks"],
+      "main": ["AppModel", "views", "ScrollEngine", "ActionExecutor", "SymbolicShortcut", "DockSwipe", "RingController", "IOKit callbacks"],
       "local.logimouse.hardware": ["DeviceService state", "HIDTransport.request", "CaptureGuardian"],
       "mainActorAnnotated": false
     },
@@ -159,6 +160,9 @@
       "GestureAccumulator",
       "GestureDirection",
       "GestureActions",
+      "GestureSession",
+      "SpaceSwipe",
+      "SwipeStep",
       "CaptureRecovery"
     ],
     "services": [
@@ -169,7 +173,8 @@
       "ActionExecutor",
       "RingController",
       "CaptureGuardian",
-      "SymbolicShortcut"
+      "SymbolicShortcut",
+      "DockSwipe"
     ],
     "stateKinds": {
       "desired": "HardwareView @ViewState before apply",
@@ -180,6 +185,7 @@
       "Logitech MX Master 4 Bluetooth HID++ interface",
       "macOS Accessibility and Input Monitoring",
       "NSWorkspace and symbolic hotkeys",
+      "Dock swipe events via private IOKit IOHIDEvent and SkyLight SLEventSetIOHIDEvent (macOS 27+)",
       "UserDefaults",
       "SMAppService login item",
       "local application bundle resources"
@@ -202,7 +208,7 @@
   "knownIssues": {
     "source": "docs/specs/architecture.md",
     "discrepancies": ["D-01", "D-02", "D-03", "D-04", "D-05", "D-06", "D-07", "D-08", "D-09", "D-10"],
-    "unknowns": ["U-01", "U-02", "U-03", "U-04", "U-05", "U-06", "U-07", "U-08", "U-09", "U-10"],
+    "unknowns": ["U-01", "U-02", "U-03", "U-04", "U-05", "U-06", "U-07", "U-08", "U-09", "U-10", "U-11", "U-12", "U-13", "U-14"],
     "proposals": ["P-01", "P-02", "P-03", "P-04", "P-05", "P-06", "P-07"]
   },
   "process": {
@@ -214,8 +220,8 @@
       "adr": "docs/specs/templates/adr.md"
     },
     "identifiers": ["CH-NNNN", "R-NN", "AC-NN", "T-NN", "V-NN", "M-NN", "INV-N", "ADR-NNNN", "D-NN", "U-NN", "P-NN"],
-    "changes": ["docs/specs/changes/0001-sdd-adoption/spec.md"],
-    "adrs": ["docs/specs/adr/0001-sdd-process-and-structure.md"]
+    "changes": ["docs/specs/changes/0001-sdd-adoption/spec.md", "docs/specs/changes/0002-configurable-gestures/spec.md", "docs/specs/changes/0003-smooth-desktop-swipe/spec.md"],
+    "adrs": ["docs/specs/adr/0001-sdd-process-and-structure.md", "docs/specs/adr/0002-dock-swipe-synthesis.md"]
   },
   "references": {
     "constitution": "docs/specs/architecture.md",
