@@ -91,6 +91,11 @@ sed -i '' 's/print("22 checks passed")/print("23 checks passed")/' "$target"
 expect_registration "всё зарегистрировано" "$target" ""
 sed -i '' 's/print("23 checks passed")/print("99 checks passed")/' "$target"
 expect_registration "другой файл" "$project/Tests/SpotlightShortcutChecks/main.swift" ""
+# В worktree CLAUDE_PROJECT_DIR указывает на основную копию, а правка идёт в другую папку.
+worktree=$tmp/project/.claude/worktrees/x
+mkdir -p "$worktree/Tests/MouseCoreTests"
+cp "$target" "$worktree/Tests/MouseCoreTests/MouseCoreTests.swift"
+expect_registration "правка в worktree" "$worktree/Tests/MouseCoreTests/MouseCoreTests.swift" "99 checks passed"
 
 if [ "$failures" -gt 0 ]; then
   echo "$failures проверок не прошли"; exit 1

@@ -50,10 +50,10 @@ def main():
         event = json.load(sys.stdin)
     except ValueError:
         return 0
-    project = os.environ.get("CLAUDE_PROJECT_DIR") or event.get("cwd") or os.getcwd()
-    path = (event.get("tool_input") or {}).get("file_path") or ""
-    target = os.path.join(project, TARGET)
-    if os.path.realpath(path) != os.path.realpath(target) or not os.path.isfile(target):
+    # Путь берётся из события, а не из CLAUDE_PROJECT_DIR: в worktree-сессии
+    # CLAUDE_PROJECT_DIR указывает на основную копию, а правка идёт в worktree.
+    target = (event.get("tool_input") or {}).get("file_path") or ""
+    if not os.path.normpath(target).endswith(os.sep + TARGET) or not os.path.isfile(target):
         return 0
     with open(target, encoding="utf-8") as f:
         found = problems(f.read())
