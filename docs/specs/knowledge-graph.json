@@ -222,7 +222,7 @@
       "adr": "docs/specs/templates/adr.md"
     },
     "identifiers": ["CH-NNNN", "R-NN", "AC-NN", "T-NN", "V-NN", "M-NN", "INV-N", "ADR-NNNN", "D-NN", "U-NN", "P-NN"],
-    "changes": ["docs/specs/changes/0001-sdd-adoption/spec.md", "docs/specs/changes/0002-configurable-gestures/spec.md", "docs/specs/changes/0003-smooth-desktop-swipe/spec.md", "docs/specs/changes/0004-accent-color/spec.md"],
+    "changes": ["docs/specs/changes/0001-sdd-adoption/spec.md", "docs/specs/changes/0002-configurable-gestures/spec.md", "docs/specs/changes/0003-smooth-desktop-swipe/spec.md", "docs/specs/changes/0004-accent-color/spec.md", "docs/specs/changes/0005-sidebar-hit-area/spec.md"],
     "adrs": ["docs/specs/adr/0001-sdd-process-and-structure.md", "docs/specs/adr/0002-dock-swipe-synthesis.md"]
   },
   "references": {

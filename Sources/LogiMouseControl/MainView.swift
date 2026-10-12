@@ -74,6 +74,7 @@ struct MainView: View {
                     HStack(spacing: 11) { Image(systemName: item.symbol).frame(width: 19); Text(item.rawValue).font(.system(size: 12, weight: page == item ? .semibold : .regular)); Spacer() }
                         .foregroundStyle(page == item ? accent : Palette.inactive).padding(.horizontal, 12).padding(.vertical, 13)
                         .background(page == item ? accent.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 10))
+                        .contentShape(RoundedRectangle(cornerRadius: 10))
                 }.buttonStyle(.plain).padding(.bottom, 3)
             }
             Spacer(minLength: 30)
