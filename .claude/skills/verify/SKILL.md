@@ -8,6 +8,7 @@ description: Runs the project's automatic checks on the current changes (core ch
 model: sonnet
 effort: low
 disable-model-invocation: true
+allowed-tools: Bash(git status *)
 ---
 
 Verify the current changes. Don't change any files, and don't fix failures: report them.
