@@ -1,8 +1,10 @@
 import Foundation
 
-// All dependencies are fakes. No CGEvents, Spotlight launch, or OS settings access.
+// All dependencies are fakes. No CGEvents, Spotlight launch, Space switch, or OS settings access.
 final class Harness {
     var enabled: Bool
+    var fallback: SymbolicShortcut.Binding?
+    var prepared: [SymbolicShortcut.Binding] = []
     var canRead = true
     var canPrepare = true
     var enableSucceeds = true
@@ -11,15 +13,15 @@ final class Harness {
     var posted = 0
     var queued: [() -> Void] = []
     var errors: [String] = []
-    lazy var shortcut = SpotlightShortcut(api: .init(binding: { [self] in
+    lazy var shortcut = SymbolicShortcut(name: "Spotlight", api: .init(binding: { [self] in
         canRead ? .init(key: 49, modifiers: 1 << 20) : nil
     }, isEnabled: { [self] in enabled }, setEnabled: { [self] value in
         states.append(value)
         let success = value ? enableSucceeds : disableSucceeds
         if success { enabled = value }
         return success
-    }), prepare: { [self] binding in
-        precondition(binding.key == 49 && binding.modifiers == 1 << 20)
+    }), fallback: fallback, prepare: { [self] binding in
+        prepared.append(binding)
         return canPrepare ? { [self] in posted += 1 } : nil
     }, schedule: { [self] in queued.append($0) })
     init(enabled: Bool) { self.enabled = enabled }
@@ -29,6 +31,7 @@ final class Harness {
 let enabled = Harness(enabled: true)
 enabled.run()
 precondition(enabled.posted == 1 && enabled.states.isEmpty && enabled.queued.isEmpty)
+precondition(enabled.prepared == [.init(key: 49, modifiers: 1 << 20)])
 print("PASS enabled shortcut leaves settings untouched")
 
 let disabled = Harness(enabled: false)
@@ -67,7 +70,7 @@ precondition(!restoration.enabled)
 print("PASS restoration failure is reported and can recover on the next request")
 
 var unavailableErrors = 0
-let unavailable = SpotlightShortcut(api: nil, prepare: { _ in preconditionFailure("Must not prepare") }, schedule: { _ in preconditionFailure("Must not schedule") })
+let unavailable = SymbolicShortcut(name: "Spotlight", api: nil, prepare: { _ in preconditionFailure("Must not prepare") }, schedule: { _ in preconditionFailure("Must not schedule") })
 unavailable.perform { _ in unavailableErrors += 1 }
 precondition(unavailableErrors == 1)
 print("PASS unavailable SPI reports an error without fallback app launch")
@@ -78,4 +81,33 @@ precondition(!shutdown.enabled && shutdown.states == [true, false])
 shutdown.queued[0]()
 precondition(shutdown.states == [true, false])
 print("PASS clean shutdown restores immediately and invalidates pending callbacks")
-print("8 isolated checks passed; no real actions executed")
+
+// Spaces: WindowServer may omit an unchanged default; the macOS default with Fn is used then.
+let spaceDefault = SymbolicShortcut.Binding(key: 123, modifiers: 0x840000)
+let reported = Harness(enabled: true)
+reported.fallback = spaceDefault; reported.run()
+precondition(reported.prepared == [.init(key: 49, modifiers: 1 << 20)] && reported.posted == 1)
+print("PASS reported binding wins over the fallback")
+let missing = Harness(enabled: true)
+missing.fallback = spaceDefault; missing.canRead = false; missing.run()
+precondition(missing.prepared == [spaceDefault] && missing.posted == 1 && missing.errors.isEmpty)
+print("PASS missing binding uses the default with its Fn flag")
+let missingDisabled = Harness(enabled: false)
+missingDisabled.fallback = spaceDefault; missingDisabled.canRead = false; missingDisabled.run()
+precondition(missingDisabled.posted == 1 && missingDisabled.states == [true])
+missingDisabled.queued[0]()
+precondition(!missingDisabled.enabled && missingDisabled.states == [true, false])
+print("PASS fallback binding still restores a disabled shortcut")
+let noBinding = Harness(enabled: false)
+noBinding.canRead = false; noBinding.run()
+precondition(noBinding.posted == 0 && noBinding.prepared.isEmpty && noBinding.states.isEmpty && noBinding.errors.count == 1)
+precondition(noBinding.errors[0].contains("«Spotlight»"))
+print("PASS no binding and no fallback reports an error without dispatch")
+let left = Harness(enabled: false), right = Harness(enabled: false)
+left.run(); right.run()
+left.shortcut.cancelPendingRestore { _ in preconditionFailure("Unexpected restore error") }
+precondition(!left.enabled && right.enabled && right.states == [true])
+right.queued[0]()
+precondition(!right.enabled)
+print("PASS separate shortcuts restore independently")
+print("13 isolated checks passed; no real actions executed")

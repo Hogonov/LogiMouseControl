@@ -1,8 +1,8 @@
 # Онтология LogiMouseControl
 
-Версия: 1.1.0
+Версия: 1.2.0
 Дата: 2026-10-12
-Последнее изменение: [CH-0001](changes/0001-sdd-adoption/spec.md)
+Последнее изменение: [CH-0002](changes/0002-configurable-gestures/spec.md)
 
 Единый язык для спецификаций, кода и интерфейса. Колонка «В коде» называет символ, который реализует понятие; если символа нет, понятие описательное. Архитектура: [architecture.md](architecture.md).
 
@@ -46,13 +46,18 @@
 | Ratchet | Принудительный пошаговый режим колеса. | `WheelMode.ratchet` |
 | Free spin | Принудительный свободный режим колеса. | `WheelMode.freeSpin` |
 | Raw XY | Поток относительных смещений от контрола с флагом `0x100`; включается только для действия «Жесты». | `MouseControl.rawXY` |
-| Gesture | Направление, определённое по накопленным Raw XY после порога 60; без направления — Mission Control. | `GestureAccumulator`, `ActionExecutor.gesture` |
+| Gesture | Удержание контрола с действием «Жесты», движение и отпускание; выполняет действие, выбранное для направления. | `GestureAccumulator`, `AppModel.handle(_:)` |
+| Gesture direction | Вверх, вниз, влево, вправо по преобладающей оси после порога 60 либо «нажатие» (`click`), если порог не пройден. | `GestureDirection` |
+| Gesture actions | Действие для каждого направления одного контрола; общие для всех профилей; по умолчанию повторяют прежнее фиксированное поведение. | `GestureActions`, `Preferences.gestures`, `gestureActions(for:)` |
+| Last gesture | Последний распознанный жест и действие, показываемые в UI; только в памяти. | `AppModel.lastGesture` |
 
 ## Действия и профили
 
 | Термин | Каноническое значение | В коде |
 |---|---|---|
 | Mouse action | Назначение кнопки: системная обработка, «Ничего», навигация, жесты, медиадействие, кольцо. | `MouseAction` |
+| Desktop switch | Переход на соседний рабочий стол (Space) слева или справа через системное сочетание macOS. | `MouseAction.previousDesktop`, `nextDesktop` |
+| Symbolic shortcut | Системное сочетание WindowServer по номеру (64 Spotlight, 33 окна приложения, 36 рабочий стол, 79/81 рабочие столы); читается через CGS, отключённое включается временно. | `SymbolicShortcut` |
 | System action | Контрол не перехватывается и работает как в native HID. | `MouseAction.system` |
 | None action | Контрол перехватывается, и нажатие ничего не делает. | `MouseAction.none` |
 | Ring action | Пункт кольца: действие мыши или запуск выбранного приложения. | `RingAction`, `RingApplication` |

@@ -12,15 +12,18 @@ func renderArtworkPreview(to directory: URL) throws {
                     MouseControl(id: 0xc3, flags: 0x120), MouseControl(id: 0x1a0, flags: 0x120)]
     let assignments: [String: MouseAction] = ["82": .spotlight, "195": .gestures, "196": .system,
                                               "83": .back, "86": .forward, "416": .ring]
-    let buttons = ButtonAssignmentsView(controls: controls, extendedModelID: 1,
-                                       assignments: .constant(assignments), changed: {}, testAction: { _ in })
-        .padding(20).frame(width: 676, height: 580, alignment: .top)
-        .background(Color(red: 0.105, green: 0.12, blue: 0.125)).preferredColorScheme(.dark)
+    func buttons(selecting id: UInt16? = nil) -> some View {
+        ButtonAssignmentsView(controls: controls, extendedModelID: 1, assignments: .constant(assignments),
+                              gestures: .constant([:]), changed: {}, testAction: { _ in }, initialSelectedID: id)
+            .padding(20).frame(width: 676, height: 580, alignment: .top)
+            .background(Color(red: 0.105, green: 0.12, blue: 0.125)).preferredColorScheme(.dark)
+    }
     let overview = MouseIllustration(extendedModelID: 1).padding(.vertical, 15)
         .frame(width: 220, height: 250).padding(24)
         .background(Color(red: 0.11, green: 0.16, blue: 0.14)).preferredColorScheme(.dark)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    try render(buttons, size: NSSize(width: 676, height: 580), to: directory.appendingPathComponent("buttons.png"))
+    try render(buttons(), size: NSSize(width: 676, height: 580), to: directory.appendingPathComponent("buttons.png"))
+    try render(buttons(selecting: 0xc3), size: NSSize(width: 676, height: 580), to: directory.appendingPathComponent("gestures.png"))
     try render(overview, size: NSSize(width: 268, height: 298), to: directory.appendingPathComponent("overview.png"))
 }
 

@@ -3,7 +3,13 @@ import Carbon.HIToolbox
 import MouseCore
 
 final class ActionExecutor {
-    private let spotlight = SpotlightShortcut()
+    // WindowServer symbolic hotkey IDs; fallbacks are the macOS defaults (arrow keys carry Fn).
+    private let spotlight = SymbolicShortcut(hotKey: 64, name: "Spotlight")
+    private let appExpose = SymbolicShortcut(hotKey: 33, name: "Окна приложения", fallback: .init(key: 125, modifiers: 0x840000))
+    private let desktop = SymbolicShortcut(hotKey: 36, name: "Показать рабочий стол", fallback: .init(key: 103, modifiers: 0x800000))
+    private let previousDesktop = SymbolicShortcut(hotKey: 79, name: "Рабочий стол слева", fallback: .init(key: 123, modifiers: 0x840000))
+    private let nextDesktop = SymbolicShortcut(hotKey: 81, name: "Рабочий стол справа", fallback: .init(key: 124, modifiers: 0x840000))
+    private var shortcuts: [SymbolicShortcut] { [spotlight, appExpose, desktop, previousDesktop, nextDesktop] }
     var showRing: (() -> Void)?
     var onError: ((String) -> Void)?
     func execute(_ ringAction: RingAction) {
@@ -15,13 +21,16 @@ final class ActionExecutor {
     func execute(_ action: MouseAction) {
         guard AXIsProcessTrusted() else { onError?("Разрешите Универсальный доступ для выполнения действий мыши."); return }
         switch action {
-        case .system, .none: break
+        // Gestures are resolved per direction by AppModel before reaching here.
+        case .system, .none, .gestures: break
         case .ring: showRing?()
-        case .gestures, .missionControl: openSystemApplication("/System/Applications/Mission Control.app", name: "Mission Control")
-        case .appExpose: symbolic(33, fallback: (125, .maskControl))
-        case .desktop: symbolic(36, fallback: (103, []))
+        case .missionControl: openSystemApplication("/System/Applications/Mission Control.app", name: "Mission Control")
+        case .appExpose: perform(appExpose)
+        case .desktop: perform(desktop)
+        case .previousDesktop: perform(previousDesktop)
+        case .nextDesktop: perform(nextDesktop)
         case .launchpad: NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Launchpad.app"))
-        case .spotlight: spotlight.perform { [weak self] in self?.onError?($0) }
+        case .spotlight: perform(spotlight)
         case .back: key(33, .maskCommand)
         case .forward: key(30, .maskCommand)
         case .copy: key(8, .maskCommand)
@@ -38,16 +47,10 @@ final class ActionExecutor {
         }
     }
     func cancelPendingActions() {
-        spotlight.cancelPendingRestore { [weak self] in self?.onError?($0) }
+        for shortcut in shortcuts { shortcut.cancelPendingRestore { [weak self] in self?.onError?($0) } }
     }
-    func gesture(_ direction: String?) {
-        switch direction {
-        case "left": symbolic(79, fallback: (123, .maskControl))
-        case "right": symbolic(81, fallback: (124, .maskControl))
-        case "up": execute(.missionControl)
-        case "down": execute(.appExpose)
-        default: execute(.missionControl)
-        }
+    private func perform(_ shortcut: SymbolicShortcut) {
+        shortcut.perform { [weak self] in self?.onError?($0) }
     }
     // Open the system app even when its keyboard shortcut is disabled or remapped.
     // Reopen events also reach an already-running instance (not just activation).
@@ -70,18 +73,6 @@ final class ActionExecutor {
             guard let error else { return }
             DispatchQueue.main.async { self?.onError?("Не удалось открыть \(application.name): \(error.localizedDescription)") }
         }
-    }
-    private func symbolic(_ id: Int, fallback: (CGKeyCode, CGEventFlags)) {
-        let domain = UserDefaults.standard.persistentDomain(forName: "com.apple.symbolichotkeys")
-        if let keys = domain?["AppleSymbolicHotKeys"] as? [String: Any],
-           let binding = keys[String(id)] as? [String: Any],
-           let enabled = binding["enabled"] as? Bool {
-            guard enabled else { NSSound.beep(); return }
-            if let value = binding["value"] as? [String: Any], let p = value["parameters"] as? [NSNumber], p.count >= 3, p[1].intValue < 65535 {
-                key(CGKeyCode(p[1].intValue), CGEventFlags(rawValue: p[2].uint64Value)); return
-            }
-        }
-        key(fallback.0, fallback.1)
     }
     private func key(_ code: CGKeyCode, _ flags: CGEventFlags) {
         let source = CGEventSource(stateID: .privateState)

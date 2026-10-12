@@ -133,12 +133,68 @@ final class MouseCoreTests {
     func testHapticPanelDiscardsInitialPositionJump() {
         var panel = GestureAccumulator(discardFirst: true)
         panel.add(dx: 30000, dy: -30000)
-        XCTAssertNil(panel.direction)
+        XCTAssertEqual(panel.direction, .click)
         panel.add(dx: -70, dy: 2)
-        XCTAssertEqual(panel.direction, "left")
+        XCTAssertEqual(panel.direction, .left)
         var button = GestureAccumulator(discardFirst: false)
         button.add(dx: 0, dy: 80)
-        XCTAssertEqual(button.direction, "down")
+        XCTAssertEqual(button.direction, .down)
+    }
+    func testGestureBelowThresholdIsClick() {
+        var gesture = GestureAccumulator(discardFirst: false)
+        gesture.add(dx: 40, dy: -40); gesture.add(dx: 20, dy: -20)
+        XCTAssertEqual(gesture.direction, .click)
+        gesture.add(dx: 1, dy: -1)
+        XCTAssertEqual(gesture.direction, .up)
+        var right = GestureAccumulator(discardFirst: false)
+        right.add(dx: 90, dy: 89)
+        XCTAssertEqual(right.direction, .right)
+    }
+    func testLegacyPreferencesWithoutGesturesKeepSettings() throws {
+        // Shape written by the version before CH-0002: no "gestures" key.
+        let legacy = Data(#"{"scroll":{"enabled":true,"smooth":false,"natural":true,"horizontalNatural":true,"speed":2,"horizontalSpeed":1,"smoothness":0.07},"buttons":{"195":"gestures","83":"back"},"ring":["missionControl","spotlight","screenshot","copy","paste","playPause"],"profiles":[],"desiredDPI":1600,"desiredThreshold":40,"desiredIntensity":75}"#.utf8)
+        let p = try JSONDecoder().decode(Preferences.self, from: legacy)
+        XCTAssertEqual(p.buttons["195"], .gestures); XCTAssertEqual(p.buttons["83"], .back)
+        XCTAssertEqual(p.scroll.speed, 2); XCTAssertFalse(p.scroll.smooth)
+        XCTAssertEqual(p.desiredDPI, 1600); XCTAssertEqual(p.desiredThreshold, 40); XCTAssertEqual(p.desiredIntensity, 75)
+        XCTAssertEqual(p.gestureActions(for: 0xc3), GestureActions())
+        let defaults = GestureActions()
+        XCTAssertEqual(defaults[.up], .missionControl); XCTAssertEqual(defaults[.down], .appExpose)
+        XCTAssertEqual(defaults[.left], .previousDesktop); XCTAssertEqual(defaults[.right], .nextDesktop)
+        XCTAssertEqual(defaults[.click], .missionControl)
+        let minimal = try JSONDecoder().decode(Preferences.self, from: Data(#"{"buttons":{"83":"forward"}}"#.utf8))
+        XCTAssertEqual(minimal.buttons["83"], .forward); XCTAssertEqual(minimal.ring, Preferences().ring)
+    }
+    func testGestureActionsRoundTripPerControl() throws {
+        var p = Preferences()
+        var actions = GestureActions(); actions[.left] = .spotlight; actions[.click] = .none
+        p.gestures["195"] = actions
+        let restored = try JSONDecoder().decode(Preferences.self, from: JSONEncoder().encode(p))
+        XCTAssertEqual(restored.gestureActions(for: 0xc3)[.left], .spotlight)
+        XCTAssertEqual(restored.gestureActions(for: 0xc3)[.click], MouseAction.none)
+        XCTAssertEqual(restored.gestureActions(for: 0xc3)[.right], .nextDesktop)
+        XCTAssertEqual(restored.gestureActions(for: 0x1a0), GestureActions())
+    }
+    func testInvalidGestureActionsAreRepaired() throws {
+        let partial = try JSONDecoder().decode(GestureActions.self, from: Data(#"{"up":"gestures","left":"system","right":"copy"}"#.utf8))
+        XCTAssertEqual(partial[.up], .missionControl); XCTAssertEqual(partial[.left], .previousDesktop)
+        XCTAssertEqual(partial[.right], .copy); XCTAssertEqual(partial[.down], .appExpose)
+        let unknown = try JSONDecoder().decode(Preferences.self, from: Data(#"{"buttons":{"83":"back"},"gestures":{"195":{"left":"futureAction","right":"copy"}}}"#.utf8))
+        XCTAssertEqual(unknown.buttons["83"], .back)
+        XCTAssertEqual(unknown.gestureActions(for: 0xc3)[.left], .previousDesktop); XCTAssertEqual(unknown.gestureActions(for: 0xc3)[.right], .copy)
+        var p = Preferences(); var actions = GestureActions(); actions[.down] = .gestures; p.gestures["416"] = actions
+        p.sanitize()
+        XCTAssertEqual(p.gestureActions(for: 0x1a0)[.down], .appExpose)
+    }
+    func testDesktopSwitchActionsAreSelectable() {
+        for action in [MouseAction.previousDesktop, .nextDesktop] {
+            XCTAssertTrue(MouseAction.allCases.contains(action))
+            XCTAssertTrue(MouseAction.ringChoices.contains(action))
+            XCTAssertTrue(MouseAction.gestureChoices.contains(action))
+            XCTAssertFalse(action.title.isEmpty); XCTAssertFalse(action.symbol.isEmpty)
+        }
+        XCTAssertEqual(MouseAction.previousDesktop.rawValue, "previousDesktop")
+        XCTAssertFalse(MouseAction.gestureChoices.contains(.system)); XCTAssertFalse(MouseAction.gestureChoices.contains(.gestures))
     }
     func testCorruptPreferencesAreClampedAndRingIsRepaired() {
         var p = Preferences(); p.scroll.speed = .infinity; p.scroll.smoothness = -2; p.ring = [.mouse(.ring)]
@@ -172,6 +228,7 @@ final class MouseCoreTests {
 private func XCTAssertEqual<T: Equatable>(_ actual: T, _ expected: T, file: StaticString = #filePath, line: UInt = #line) { precondition(actual == expected, "Expected \(expected), got \(actual)", file: (file), line: line) }
 private func XCTAssertNil<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) { precondition(value == nil, "Expected nil", file: (file), line: line) }
 private func XCTAssertFalse(_ value: Bool, file: StaticString = #filePath, line: UInt = #line) { precondition(!value, "Expected false", file: (file), line: line) }
+private func XCTAssertTrue(_ value: Bool, file: StaticString = #filePath, line: UInt = #line) { precondition(value, "Expected true", file: (file), line: line) }
 private func XCTAssertLessThan<T: Comparable>(_ actual: T, _ other: T, file: StaticString = #filePath, line: UInt = #line) { precondition(actual < other, "Expected less than", file: (file), line: line) }
 private func XCTAssertLessThanOrEqual<T: Comparable>(_ actual: T, _ other: T, file: StaticString = #filePath, line: UInt = #line) { precondition(actual <= other, "Expected less than or equal", file: (file), line: line) }
 private func XCTFail(_ message: String, file: StaticString = #filePath, line: UInt = #line) { preconditionFailure(message, file: (file), line: line) }
@@ -202,6 +259,11 @@ private func XCTUnwrap<T>(_ value: T?) throws -> T { guard let value else { thro
         try suite.testDeviceColourUsesExtendedModelByteAndRejectsTruncation(); print("PASS testDeviceColourUsesExtendedModelByteAndRejectsTruncation")
         try suite.testCatalogSelectsWhiteAndAllVariantImagesExist(); print("PASS testCatalogSelectsWhiteAndAllVariantImagesExist")
         try suite.testButtonHotspotsAccountForImagePaddingAndKeepHapticPanelDistinct(); print("PASS testButtonHotspotsAccountForImagePaddingAndKeepHapticPanelDistinct")
-        print("22 checks passed")
+        suite.testGestureBelowThresholdIsClick(); print("PASS testGestureBelowThresholdIsClick")
+        try suite.testLegacyPreferencesWithoutGesturesKeepSettings(); print("PASS testLegacyPreferencesWithoutGesturesKeepSettings")
+        try suite.testGestureActionsRoundTripPerControl(); print("PASS testGestureActionsRoundTripPerControl")
+        try suite.testInvalidGestureActionsAreRepaired(); print("PASS testInvalidGestureActionsAreRepaired")
+        suite.testDesktopSwitchActionsAreSelectable(); print("PASS testDesktopSwitchActionsAreSelectable")
+        print("27 checks passed")
     }
 }

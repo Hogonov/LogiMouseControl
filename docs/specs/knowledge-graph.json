@@ -4,7 +4,7 @@
     "version": "2.0.0",
     "created": "2026-09-22",
     "updated": "2026-10-12",
-    "updatedBy": "CH-0001",
+    "updatedBy": "CH-0002",
     "verifiedAgainstCommit": "ef48295",
     "project": "LogiMouseControl",
     "type": "initial-discovery"
@@ -31,7 +31,7 @@
       "Sources/LogiMouseControl",
       "Sources/LogiMouseControl/DeviceImages",
       "Tests/MouseCoreTests",
-      "Tests/SpotlightShortcutChecks",
+      "Tests/SymbolicShortcutChecks",
       "Resources",
       "scripts",
       "docs",
@@ -56,7 +56,7 @@
       "CLAUDE.md",
       ".claude/settings.json"
     ],
-    "testingPattern": "Executable checks built from pure MouseCore logic (MouseCoreChecks, 22 checks) plus fake-dependent Spotlight regression checks (SpotlightShortcutChecks, 8 checks); no XCTest; no automated physical mouse input or assigned actions",
+    "testingPattern": "Executable checks built from pure MouseCore logic (MouseCoreChecks, 27 checks) plus fake-dependent symbolic-hotkey regression checks (SymbolicShortcutChecks, 13 checks); no XCTest; no automated physical mouse input or assigned actions",
     "verificationCommands": [
       "./scripts/test.sh",
       "swift build --disable-sandbox --scratch-path .build --product LogiMouseControl",
@@ -95,10 +95,10 @@
         "dependsOn": ["MouseCore"]
       },
       {
-        "name": "SpotlightShortcutChecks",
+        "name": "SymbolicShortcutChecks",
         "type": "swiftc outside SwiftPM",
-        "path": "Tests/SpotlightShortcutChecks",
-        "dependsOn": ["Sources/LogiMouseControl/SpotlightShortcut.swift"],
+        "path": "Tests/SymbolicShortcutChecks",
+        "dependsOn": ["Sources/LogiMouseControl/SymbolicShortcut.swift"],
         "builtBy": "scripts/test.sh"
       }
     ],
@@ -137,7 +137,7 @@
       "pure core logic isolated from platform UI"
     ],
     "threading": {
-      "main": ["AppModel", "views", "ScrollEngine", "ActionExecutor", "SpotlightShortcut", "RingController", "IOKit callbacks"],
+      "main": ["AppModel", "views", "ScrollEngine", "ActionExecutor", "SymbolicShortcut", "RingController", "IOKit callbacks"],
       "local.logimouse.hardware": ["DeviceService state", "HIDTransport.request", "CaptureGuardian"],
       "mainActorAnnotated": false
     },
@@ -157,6 +157,8 @@
       "RingApplication",
       "WheelMode",
       "GestureAccumulator",
+      "GestureDirection",
+      "GestureActions",
       "CaptureRecovery"
     ],
     "services": [
@@ -167,7 +169,7 @@
       "ActionExecutor",
       "RingController",
       "CaptureGuardian",
-      "SpotlightShortcut"
+      "SymbolicShortcut"
     ],
     "stateKinds": {
       "desired": "HardwareView @ViewState before apply",

@@ -92,7 +92,7 @@ R-… (spec.md) → AC-… (spec.md) → T-… (plan.md) → V-… / M-… (spec
 |---|---|---|
 | Только документация | Ссылки, валидность JSON (`python3 -m json.tool docs/specs/knowledge-graph.json`), `git diff --check`. Сборку не запускать | — |
 | `Sources/MouseCore` | `./scripts/test.sh` с новой проверкой в `Tests/MouseCoreTests/MouseCoreTests.swift`, зарегистрированной в `Checks.main()`; `git diff --check` | Если меняется поведение на мыши |
-| `SpotlightShortcut.swift` | `./scripts/test.sh` (проверки `Tests/SpotlightShortcutChecks`) | Вызов Spotlight |
+| `SymbolicShortcut.swift` | `./scripts/test.sh` (проверки `Tests/SymbolicShortcutChecks`) | Вызов Spotlight, переключение рабочих столов, окна приложения |
 | Прочий код приложения | `./scripts/test.sh`; отладочная сборка `swift build --disable-sandbox --scratch-path .build --product LogiMouseControl` с переменными кэша из `scripts/build.sh` (полная команда — `.claude/skills/verify/SKILL.md`) | По затронутым функциям |
 | Views | Всё выше и `--render-artwork-preview .build/preview` из отладочной сборки, просмотр PNG. Приложение для проверки не запускать | Взаимодействие |
 | HID, захват, жизненный цикл, прокрутка, действия | Всё выше и ревью агентом `hid-reviewer` (`/hid-review`) | Пункты `HARDWARE_VALIDATION.md` и M-… |
@@ -120,6 +120,7 @@ R-… (spec.md) → AC-… (spec.md) → T-… (plan.md) → V-… / M-… (spec
 | ID | Название | Путь | Статус |
 |---|---|---|---|
 | [CH-0001](changes/0001-sdd-adoption/spec.md) | Внедрение Spec-Driven Development | полный | реализовано |
+| [CH-0002](changes/0002-configurable-gestures/spec.md) | Настраиваемые жесты и переключение рабочих столов | полный | реализовано |
 
 ### ADR
 

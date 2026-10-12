@@ -79,11 +79,14 @@ struct ButtonAssignmentsView: View {
     let controls: [MouseControl]
     let extendedModelID: UInt8?
     @Binding var assignments: [String: MouseAction]
+    @Binding var gestures: [String: GestureActions]
     let changed: () -> Void
     let testAction: (MouseAction) -> Void
+    /// Only for the artwork preview; the window starts with the first control.
+    var initialSelectedID: UInt16? = nil
     @ViewState<UInt16?> private var selectedID: UInt16? = nil
     private let blue = Color(red: 0.32, green: 0.61, blue: 1)
-    private var selected: MouseControl? { controls.first { $0.id == selectedID } ?? controls.first }
+    private var selected: MouseControl? { controls.first { $0.id == (selectedID ?? initialSelectedID) } ?? controls.first }
 
     var body: some View {
         HStack(alignment: .top, spacing: 26) {
@@ -106,7 +109,10 @@ struct ButtonAssignmentsView: View {
                             }
                         }.labelsHidden().frame(maxWidth: .infinity)
                         let action = assignments[String(selected.id)] ?? .system
-                        if action != .system && action != .none {
+                        if action == .gestures {
+                            GestureDirectionsView(actions: Binding(get: { gestures[String(selected.id)] ?? GestureActions() },
+                                                                   set: { gestures[String(selected.id)] = $0; changed() }))
+                        } else if action != .system && action != .none {
                             Button("Проверить действие", systemImage: "play") { testAction(action) }
                                 .buttonStyle(.bordered).controlSize(.small)
                         }
@@ -132,6 +138,29 @@ struct ButtonAssignmentsView: View {
                     }
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// Action per direction for a control assigned to «Жесты».
+private struct GestureDirectionsView: View {
+    @Binding var actions: GestureActions
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("НАПРАВЛЕНИЯ ЖЕСТА").font(.system(size: 9, weight: .semibold)).tracking(1.3).foregroundStyle(.secondary)
+                .padding(.top, 4)
+            ForEach(GestureDirection.allCases) { direction in
+                HStack(spacing: 8) {
+                    Image(systemName: direction.symbol).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary).frame(width: 16)
+                    Text(direction.title).font(.system(size: 12)).frame(width: 62, alignment: .leading)
+                    Picker(direction.title, selection: $actions[direction]) {
+                        ForEach(MouseAction.gestureChoices) { action in Text(action.title).tag(action) }
+                    }.labelsHidden().frame(maxWidth: .infinity)
+                }
+            }
+            Text("Удерживайте кнопку, сдвиньте мышь и отпустите. «Нажатие» — отпустить кнопку без движения.")
+                .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }
 }

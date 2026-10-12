@@ -159,11 +159,17 @@ struct MainView: View {
             if !model.device.controls.isEmpty {
                 Card {
                     ButtonAssignmentsView(controls: model.device.controls, extendedModelID: model.device.extendedModelID,
-                                          assignments: $model.preferences.buttons, changed: model.preferencesChanged,
-                                          testAction: model.testAction)
+                                          assignments: $model.preferences.buttons, gestures: $model.preferences.gestures,
+                                          changed: model.preferencesChanged, testAction: model.testAction)
                 }
             }
-            Notice(icon: "hand.draw", title: "Жесты: удерживайте кнопку и двигайте мышь", text: "Влево / вправо — рабочие столы. Вверх — Mission Control. Вниз — окна приложения. Нажатие без движения — Mission Control. Для переключения рабочих столов и окон приложения используются ваши системные сочетания клавиш.")
+            Notice(icon: "hand.draw", title: "Жесты: удерживайте кнопку и двигайте мышь", text: "Назначьте кнопке действие «Жесты» и выберите действие для каждого направления. Жест выполняется, когда вы отпускаете кнопку. Рабочие столы, окна приложения и Spotlight вызываются системными сочетаниями macOS; отключённое сочетание включается только на время действия.")
+            if let gesture = model.lastGesture {
+                HStack(spacing: 8) {
+                    Image(systemName: gesture.direction.symbol).foregroundStyle(accent)
+                    Text("Последний жест: \(gesture.direction.title.lowercased()) → \(gesture.action.title)").font(.system(size: 12)).foregroundStyle(.secondary)
+                }.padding(.horizontal, 4)
+            }
         }
     }
     private var ring: some View {

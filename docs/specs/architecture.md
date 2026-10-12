@@ -1,9 +1,9 @@
 # Архитектурная конституция LogiMouseControl
 
-Версия: 2.0.0
+Версия: 2.1.0
 Дата: 2026-10-12
 Статус: действующая
-Последнее изменение: [CH-0001](changes/0001-sdd-adoption/spec.md) — документ сверен с кодом коммита `ef48295`.
+Последнее изменение: [CH-0002](changes/0002-configurable-gestures/spec.md) — настраиваемые жесты, `SymbolicShortcut`. Сверка с кодом: CH-0001, коммит `ef48295`, и затронутые CH-0002 разделы.
 
 Документ описывает приложение таким, какое оно есть в коде. Процесс работы с изменениями описан в [README.md](README.md), термины — в [ontology.md](ontology.md).
 
@@ -28,7 +28,7 @@ LogiMouseControl — локальное приложение для macOS 14+, �
 - подключение только к `046D:B042` (`HIDTransport.start()`), чтение функций и кнопок (`DeviceService.refresh(discover:)`);
 - собственная плавная прокрутка вертикального и бокового колёс (`ScrollEngine`, `ScrollIntegrator`);
 - DPI, SmartShift/ratchet/free-spin, порог и сила отсечек, виброотклик (`DeviceService.setDPI`, `setWheel`, `setHaptics`, `pulse`);
-- назначение действий кнопкам, жесты, кольцо действий из шести пунктов, запуск приложений из кольца (`AppModel.handle(_:)`, `ActionExecutor`, `RingController`);
+- назначение действий кнопкам, жесты с действием для каждого направления, переключение рабочих столов, кольцо действий из шести пунктов, запуск приложений из кольца (`AppModel.handle(_:)`, `ActionExecutor`, `RingController`);
 - профили приложений для прокрутки и кнопок по bundle identifier (`AppModel.effectiveScroll`, `effectiveButtons`);
 - Easy-Switch, заряд, запуск при входе (`DeviceService.switchHost`, `AppModel.setLogin`);
 - аварийное восстановление через дочерний процесс (`CaptureGuardian`);
@@ -44,10 +44,10 @@ LogiMouseControl — локальное приложение для macOS 14+, �
 |---|---|---|---|---|
 | `MouseCore` | library | `Sources/MouseCore` | только `Foundation` | HID++-пакеты, настройки и действия, интегратор прокрутки, накопитель жестов, каталог изображений |
 | `LogiMouseControl` | executable | `Sources/LogiMouseControl` | `MouseCore`; AppKit, IOKit, ApplicationServices, ServiceManagement; ресурсы `DeviceImages` | приложение, помощник восстановления, диагностика |
-| `MouseCoreChecks` | executable | `Tests/MouseCoreTests` | `MouseCore` | 22 самописные проверки ядра без XCTest |
-| `SpotlightShortcutChecks` | не SwiftPM | `Tests/SpotlightShortcutChecks` | исходник `SpotlightShortcut.swift` | 8 проверок с подставными зависимостями; собирается `swiftc` в `scripts/test.sh` |
+| `MouseCoreChecks` | executable | `Tests/MouseCoreTests` | `MouseCore` | 27 самописных проверок ядра без XCTest |
+| `SymbolicShortcutChecks` | не SwiftPM | `Tests/SymbolicShortcutChecks` | исходник `SymbolicShortcut.swift` | 13 проверок с подставными зависимостями; собирается `swiftc` в `scripts/test.sh` |
 
-Следствие для кода: `Sources/LogiMouseControl/SpotlightShortcut.swift` компилируется отдельно от остального target, поэтому может зависеть только от `AppKit` и `Darwin`, но не от `MouseCore` и других файлов приложения.
+Следствие для кода: `Sources/LogiMouseControl/SymbolicShortcut.swift` компилируется отдельно от остального target, поэтому может зависеть только от `AppKit` и `Darwin`, но не от `MouseCore` и других файлов приложения.
 
 ## 3. Компоненты
 
@@ -61,10 +61,10 @@ LogiMouseControl — локальное приложение для macOS 14+, �
 | `HIDTransport` | [HIDTransport.swift](../../Sources/LogiMouseControl/HIDTransport.swift) | IOHIDManager, открытие устройства, один запрос в полёте, доставка событий | IOKit, `HIDPacket` | callbacks на main run loop; `request` на очереди |
 | `CaptureGuardian` | [CaptureGuardian.swift](../../Sources/LogiMouseControl/CaptureGuardian.swift) | Дочерний процесс `--recover-on-exit` и pipe со снимком восстановления | `Process`, `Pipe`, `DeviceService` (в дочернем процессе) | очередь `DeviceService` |
 | `ScrollEngine` | [ScrollEngine.swift](../../Sources/LogiMouseControl/ScrollEngine.swift) | Пиксельные `CGEvent` прокрутки, таймер 120 Гц, прерывание чужим вводом | `ScrollIntegrator` | main |
-| `ActionExecutor` | [ActionExecutor.swift](../../Sources/LogiMouseControl/ActionExecutor.swift) | Сочетания клавиш, медиаклавиши, системные приложения, жесты | `SpotlightShortcut`, `NSWorkspace`, `CGEvent` | main |
-| `SpotlightShortcut` | [SpotlightShortcut.swift](../../Sources/LogiMouseControl/SpotlightShortcut.swift) | Symbolic hotkey 64 через динамически загружаемый CGS, временное включение и возврат | `dlopen`/`dlsym` | main |
+| `ActionExecutor` | [ActionExecutor.swift](../../Sources/LogiMouseControl/ActionExecutor.swift) | Сочетания клавиш, медиаклавиши, системные приложения, системные сочетания (Spotlight, окна приложения, рабочий стол, рабочие столы слева/справа) | `SymbolicShortcut`, `NSWorkspace`, `CGEvent` | main |
+| `SymbolicShortcut` | [SymbolicShortcut.swift](../../Sources/LogiMouseControl/SymbolicShortcut.swift) | Один symbolic hotkey WindowServer (64, 33, 36, 79, 81) через динамически загружаемый CGS: чтение действующего сочетания, запасное значение macOS по умолчанию, временное включение и возврат | `dlopen`/`dlsym` | main |
 | `RingController` | [RingController.swift](../../Sources/LogiMouseControl/RingController.swift) | Неактивирующая `NSPanel` с `ActionRingView` | SwiftUI, `NSEvent` monitors | main |
-| `MouseCore` | [Sources/MouseCore](../../Sources/MouseCore/) | `HIDPacket`, `HIDFailure`, `reportingPayload`, `WheelMode`, `Preferences`, `ScrollIntegrator`, `GestureAccumulator`, `MouseIdentity`, `MouseArtworkManifest` | `Foundation` | любой |
+| `MouseCore` | [Sources/MouseCore](../../Sources/MouseCore/) | `HIDPacket`, `HIDFailure`, `reportingPayload`, `WheelMode`, `Preferences`, `ScrollIntegrator`, `GestureAccumulator`, `GestureDirection`, `GestureActions`, `MouseIdentity`, `MouseArtworkManifest` | `Foundation` | любой |
 
 ```mermaid
 flowchart LR
@@ -78,7 +78,7 @@ flowchart LR
     DS["DeviceService · queue"]
     SE["ScrollEngine"]
     AE["ActionExecutor"]
-    SS["SpotlightShortcut"]
+    SS["SymbolicShortcut"]
     CG["CaptureGuardian"]
   end
   T["HIDTransport · IOHIDManager"]
@@ -141,7 +141,7 @@ flowchart TD
   F -- "0x1B04 fn1" --> XY["GestureAccumulator.add"]
   B -- "нажата, действие gestures" --> GA["Новый GestureAccumulator"]
   B -- "нажата, другое действие" --> AE["ActionExecutor.execute"]
-  B -- "отпущена кнопка жестов" --> GE["ActionExecutor.gesture + DeviceService.pulse"]
+  B -- "отпущена кнопка жестов" --> GE["Preferences.gestureActions → ActionExecutor.execute + DeviceService.pulse"]
   V --> TM["Таймер 120 Гц: ScrollIntegrator.advance → CGEvent"]
   HZ --> TM
 ```
@@ -149,7 +149,8 @@ flowchart TD
 - Вертикальное смещение: `signedWord(payload, 1)`, делённое на `verticalMultiplier` в режиме высокого разрешения, ×40. Боковое: `signedWord(payload) / horizontalResolution × 800`. Происхождение коэффициентов 40 и 800 в репозитории не описано (U-08).
 - `ScrollEngine.feed` учитывает скорость и направление из `ScrollPreferences`, запускает `DispatchSourceTimer` на main с периодом 1/120 с и останавливает его через 0,09 с без ввода. События помечаются `eventSourceUserData = ScrollEngine.marker`; глобальный монитор нажатий и чужой точной прокрутки вызывает `stop()`.
 - Действие берётся из `AppModel.eventButtons` — копии назначений, подтверждённых последним успешным `configureCapture`. Нажатие любой кнопки останавливает инерцию прокрутки.
-- Для тактильной панели (`0x1A0`) первый сдвиг Raw XY отбрасывается (`GestureAccumulator(discardFirst:)`). Порог жеста — 60 единиц; без направления выполняется Mission Control.
+- Для тактильной панели (`0x1A0`) первый сдвиг Raw XY отбрасывается (`GestureAccumulator(discardFirst:)`). Порог жеста — 60 единиц; меньший сдвиг — направление `click`. При отпускании `AppModel` берёт действие из `Preferences.gestureActions(for: CID)[direction]` (общие для всех профилей), выполняет его через `ActionExecutor.execute` и, кроме «Ничего», вызывает `pulse()`. Последний жест хранится в `AppModel.lastGesture` только в памяти.
+- Системные действия «Окна приложения», «Показать рабочий стол», «Рабочий стол слева/справа» и Spotlight отправляют сочетание, которое сообщает WindowServer (`CGSGetSymbolicHotKeyValue`), через `.hidSystemState` в `.cgSessionEventTap`. Файл `com.apple.symbolichotkeys` не читается: в нём может не быть неизменённых значений по умолчанию. Если CGS не вернул сочетание, используется значение macOS по умолчанию с флагом Fn (`0x840000` для стрелок). Mission Control открывается через `NSWorkspace`.
 
 ### 4.3. Изменение аппаратной настройки
 
@@ -215,7 +216,7 @@ sequenceDiagram
 ### 4.5. Настройки
 
 1. `AppModel.init()` читает `UserDefaults.standard.data(forKey: "preferences.v1")`, декодирует `Preferences` и вызывает `sanitize()`.
-2. Привязки views меняют `AppModel.preferences`. Прокрутка, кнопки и профили вызывают `preferencesChanged()` = `save()` + `configure()`. Изменение кольца вызывает только `save()`.
+2. Привязки views меняют `AppModel.preferences`. Прокрутка, кнопки, направления жестов и профили вызывают `preferencesChanged()` = `save()` + `configure()`. Изменение кольца вызывает только `save()`.
 3. Аппаратные значения в `HardwareView` хранятся в локальных `@ViewState` и попадают в `Preferences` только после подтверждения устройством (4.3).
 4. При смене активного приложения (`NSWorkspace.didActivateApplicationNotification`, кроме собственного bundle) `frontmostID` меняется, прокрутка и кольцо останавливаются, `configure()` применяет эффективный профиль.
 
@@ -231,7 +232,8 @@ sequenceDiagram
 | `IOHIDManager`, callbacks устройства | `HIDTransport` | main run loop | `dispatchPrecondition(.onQueue(.main))` в `start()` |
 | `process`, `input` | `CaptureGuardian` | очередь `DeviceService` | вызывается только из `DeviceService.checkpoint()` и `finishGuardian` |
 | Интеграторы, таймер, монитор событий | `ScrollEngine` | main | таймер на `.main` |
-| `needsRestore`, `generation` | `SpotlightShortcut` | main | восстановление планируется через `DispatchQueue.main.asyncAfter` |
+| `lastGesture` | `AppModel` | main | только в памяти |
+| `needsRestore`, `generation` (у каждого экземпляра) | `SymbolicShortcut` | main | восстановление планируется через `DispatchQueue.main.asyncAfter` |
 | Панель и мониторы | `RingController` | main | — |
 
 Правила, которые соблюдает код: `HIDTransport.request` содержит `precondition(!Thread.isMainThread)`; ожидание ответа ограничено 0,8 с; одновременно ожидается один запрос, потому что все запросы идут через `DeviceService.perform` на последовательной очереди; `completion` и `onError` вызываются на main.
@@ -252,7 +254,7 @@ sequenceDiagram
 | Смена активного приложения | `didActivateApplicationNotification` | Новый профиль через `configure()` |
 | Изменение разрешений или конфликтов | Сторож сравнивает с прошлым значением | `configure()` |
 | Easy-Switch | `AppModel.switchHost` → `DeviceService.switchHost` | `restoreAll()`, затем `notify` 0x1814 |
-| Выход | `AppDelegate.applicationShouldTerminate` → `AppModel.shutdown` | Остановка всего, `cancelPendingActions()` (возврат Spotlight), `release`, `finishGuardian(clean: success)`, `transport.stop()`; ответ `.terminateLater` |
+| Выход | `AppDelegate.applicationShouldTerminate` → `AppModel.shutdown` | Остановка всего, `cancelPendingActions()` (возврат всех временно включённых системных сочетаний), `release`, `finishGuardian(clean: success)`, `transport.stop()`; ответ `.terminateLater` |
 | Авария основного процесса | EOF в pipe помощника без `clean` | `CaptureGuardian.run()` ждёт подключения до 15 с и вызывает `restoreRecovery` |
 
 ```mermaid
@@ -287,7 +289,7 @@ stateDiagram-v2
 |---|---|---|
 | `HIDFailure` из команд | `DeviceService.perform` → `onError` → `AppModel.error` | Карточка «Нужна проверка» в `MainView`, только если есть Мониторинг ввода |
 | Необязательные чтения | `readOptional` → `DeviceSnapshot.warnings` | Страница «Приложение» |
-| Действия | `ActionExecutor.onError`, `SpotlightShortcut` | `AppModel.error` |
+| Действия | `ActionExecutor.onError`, `SymbolicShortcut` | `AppModel.error` |
 | Сохранение настроек, запуск при входе | `AppModel.save()`, `setLogin` | `AppModel.error` |
 | Чтение настроек | `try?` в `AppModel.init()` | Не показывается: настройки молча заменяются значениями по умолчанию (см. раздел 8) |
 | Ошибка открытия HID | `HIDTransport.onStatus` | `AppModel.error` с текстом `HIDFailure.io` про Мониторинг ввода для любого кода IOReturn (D-04) |
@@ -308,20 +310,21 @@ stateDiagram-v2
 
 | Тип | Поля | Особенности |
 |---|---|---|
-| `Preferences` | `scroll`, `buttons`, `ring`, `profiles`, `desiredDPI?`, `desiredWheel?`, `desiredThreshold`, `desiredTorque?`, `desiredHaptics?`, `desiredIntensity` | Ключи `buttons` — десятичный CID строкой (`"416"` для `0x1A0`) |
+| `Preferences` | `scroll`, `buttons`, `gestures`, `ring`, `profiles`, `desiredDPI?`, `desiredWheel?`, `desiredThreshold`, `desiredTorque?`, `desiredHaptics?`, `desiredIntensity` | Ключи `buttons` и `gestures` — десятичный CID строкой (`"416"` для `0x1A0`). Ручной `init(from:)` (CH-0002): отсутствующий ключ даёт значение по умолчанию |
 | `ScrollPreferences` | `enabled`, `smooth`, `natural`, `horizontalNatural`, `speed`, `horizontalSpeed`, `smoothness` | `sanitize()` ограничивает скорости 0,2…4 и `smoothness` 0,015…0,18 |
 | `AppProfile` | `id` (bundle identifier), `name`, `scroll`, `buttons` | — |
 | `RingAction` | строка `MouseAction` или `{"application": RingApplication}` | Собственный `Codable`; старый формат-строка читается |
 | `RingApplication` | `bundleIdentifier?`, `name`, `path` | Поиск по bundle ID, затем по пути (`resolvedURL`) |
-| `MouseAction`, `WheelMode` | строковые `rawValue` | — |
+| `GestureActions` | `up`, `down`, `left`, `right`, `click` | Ручной `init(from:)`: отсутствующее или неизвестное значение направления заменяется значением по умолчанию; `.system` и `.gestures` недопустимы |
+| `MouseAction`, `WheelMode` | строковые `rawValue` | CH-0002 добавил `previousDesktop`, `nextDesktop` |
 
 `sanitize()` вызывается при чтении и каждом сохранении: ограничивает диапазоны, округляет `desiredDPI` до 50 в пределах 200…8000 и восстанавливает кольцо по умолчанию, если в нём не 6 допустимых пунктов.
 
-Поведение синтезированного `Codable` (проверено на Swift 6.4 в CH-0001): отсутствие ключа у необязательного поля даёт `nil`; отсутствие ключа у неопционального поля, даже со значением по умолчанию, и неизвестное значение перечисления дают ошибку декодирования всего `Preferences`. `AppModel.init()` в этом случае использует `Preferences()`, а следующий `save()` перезаписывает прежние данные. Поэтому действует INV-14.
+Поведение синтезированного `Codable` (проверено на Swift 6.4 в CH-0001; с CH-0002 у `Preferences` ручной декодер, у `ScrollPreferences` и `AppProfile` по-прежнему синтезированный): отсутствие ключа у необязательного поля даёт `nil`; отсутствие ключа у неопционального поля, даже со значением по умолчанию, и неизвестное значение перечисления дают ошибку декодирования всего `Preferences`. `AppModel.init()` в этом случае использует `Preferences()`, а следующий `save()` перезаписывает прежние данные. Поэтому действует INV-14.
 
 ## 9. Сборка, подпись и идентичность
 
-- `scripts/test.sh`: `swift run MouseCoreChecks`, затем `swiftc` собирает и запускает `SpotlightShortcutChecks`. Кэши модулей — в `.build`.
+- `scripts/test.sh`: `swift run MouseCoreChecks`, затем `swiftc` собирает и запускает `SymbolicShortcutChecks`. Кэши модулей — в `.build`.
 - `scripts/build.sh [release|debug]`: ищет подпись `Logi Mouse Control Local Signing` (или `LOGI_MOUSE_CONTROL_SIGNING_IDENTITY`: имя или SHA-1); без неё завершается с ошибкой. Собирает продукт, создаёт `dist/Logi Mouse Control.app`, копирует `Info.plist`, `THIRD_PARTY_NOTICES.md`, `AppIcon.icns` и `LogiMouseControl_LogiMouseControl.bundle`, подписывает с `--identifier local.alexandr.LogiMouseControl`, проверяет `codesign --verify --strict` и отказывается от ad hoc-подписи (требование `cdhash H"…"`).
 - `scripts/setup-local-signing.sh` один раз создаёт самоподписанный сертификат в пользовательской связке ключей и доверие для подписи кода. Скрипт меняет связку ключей; агенты его не запускают.
 - Идентичность для macOS: bundle ID и идентификатор подписи `local.alexandr.LogiMouseControl` плюс постоянный сертификат. Их смена заставит заново выдавать Мониторинг ввода и Универсальный доступ (`README.md`, раздел «Запуск»).
@@ -354,7 +357,7 @@ stateDiagram-v2
 
 | Проверка | Что подтверждает | Что не подтверждает |
 |---|---|---|
-| `./scripts/test.sh` | Логику `MouseCore` (22 проверки) и `SpotlightShortcut` на подставных зависимостях (8 проверок) | Работу с устройством, `AppModel`, `DeviceService`, UI |
+| `./scripts/test.sh` | Логику `MouseCore` (27 проверок) и `SymbolicShortcut` на подставных зависимостях (13 проверок) | Работу с устройством, `AppModel`, `DeviceService`, UI |
 | Отладочная сборка `swift build --product LogiMouseControl` (команда в `.claude/skills/verify/SKILL.md`) | Компиляцию приложения, без изменения `dist/` и подписи | Поведение |
 | `./scripts/build.sh` | Сборку `.app`, подпись постоянным сертификатом | Поведение; перезаписывает `dist/` |
 | `--render-artwork-preview <папка>` | Вёрстку `ButtonAssignmentsView` и `MouseIllustration` | Нажатия и реакцию мыши |
@@ -368,7 +371,7 @@ stateDiagram-v2
 
 | ID | Было в документации | Факт в коде | Решение |
 |---|---|---|---|
-| D-01 | «Два Swift Package Manager targets» | `Package.swift` объявляет три target, включая `MouseCoreChecks`; `SpotlightShortcutChecks` собирается вне SwiftPM | Раздел 2 |
+| D-01 | «Два Swift Package Manager targets» | `Package.swift` объявляет три target, включая `MouseCoreChecks`; `SpotlightShortcutChecks` (с CH-0002 — `SymbolicShortcutChecks`) собирается вне SwiftPM | Раздел 2 |
 | D-02 | «Аппаратная запись считается успешной только после ответа и проверки состояния»; в README — «чтение после записи» | `restoreScroll`, `restoreButton`, `restoreRecovery` не перечитывают состояние; `switchHost` использует `notify` без ответа | INV-5 перечисляет исключения; P-02 |
 | D-03 | «Applied configuration» как одна сущность | Разделено: `DeviceSnapshot` для аппаратных настроек, `appliedScroll`/`appliedButtons`/`eventButtons` для захвата | Раздел 7, `ontology.md` |
 | D-04 | Ошибка разрешения, конфликт, отсутствие возможности и отказ устройства сообщаются раздельно | Любой код IOReturn превращается в `HIDFailure.io` с текстом про Мониторинг ввода | Записано в разделе 6; P-03 |
@@ -378,6 +381,7 @@ stateDiagram-v2
 | D-08 | Правило совместимости `preferences.v1` в `.claude/rules/mouse-core.md` | Механизма нет: синтезированный `Codable` и `try?` молча сбрасывают все настройки при новом неопциональном поле | INV-14, раздел 8; P-01 |
 | D-09 | Граф знаний не упоминал `GestureAccumulator` и `MouseCoreChecks` | Оба есть в коде | `knowledge-graph.json` |
 | D-10 | `HARDWARE_VALIDATION.md`: «Release подписана ad hoc» | С коммита `2dcbc8b` `build.sh` требует постоянный сертификат и отвергает ad hoc | Запись историческая, оставлена; добавлено пояснение |
+| D-11 | Подсказка UI: «для переключения рабочих столов используются ваши системные сочетания клавиш» | Найдено в CH-0002: `ActionExecutor.symbolic` читал файл `com.apple.symbolichotkeys`; без записанного `value` (79/81 на macOS 27) отправлялось ⌃←/⌃→ без флага Fn, не совпадающее с системным сочетанием | Исправлено в коде: `SymbolicShortcut` |
 
 ## Неизвестное и непроверенное
 
@@ -393,6 +397,8 @@ stateDiagram-v2
 | U-08 | Происхождение коэффициентов прокрутки 40 и 800 в `AppModel.handle` | Влияет на скорость прокрутки | Источник не найден |
 | U-09 | Значения флагов `0x1B04` (`0x20`, `0x80`, `0x100` …) | Описаны только в коде и комментариях `reportingPayload`; первоисточник — OpenLogi (`THIRD_PARTY_NOTICES.md`) | Сверка с OpenLogi |
 | U-10 | Используется ли `NSBluetoothAlwaysUsageDescription` | Приложение работает через IOKit HID, не CoreBluetooth | Не проверялось |
+| U-11 | Остаётся ли включённым системное сочетание, временно включённое `SymbolicShortcut`, если процесс аварийно завершится в окне 0,25 с | Помощник восстанавливает только HID; отключённые пользователем ⌃←/⌃→/⌃↓ могут остаться включёнными | Не проверялось; при необходимости — отдельное изменение |
+| U-12 | Реагирует ли WindowServer macOS 27 на синтезированные сочетания рабочих столов | От этого зависит переключение рабочих столов (CH-0002, M-01) | Пользователь на мыши |
 
 ## Предлагаемые улучшения
 

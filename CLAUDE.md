@@ -10,12 +10,12 @@
 - `Sources/LogiMouseControl/`: исполняемое приложение.
   - Точка входа и CLI-флаги (`--diagnose`, `--render-artwork-preview`, `--recover-on-exit`): `AppEntry.swift`.
   - Координация состояния: `AppModel.swift`.
-  - Сервисы: `DeviceService` (очередь HID-команд), `ScrollEngine`, `ActionExecutor`, `RingController`, `CaptureGuardian`, `SpotlightShortcut`.
+  - Сервисы: `DeviceService` (очередь HID-команд), `ScrollEngine`, `ActionExecutor`, `RingController`, `CaptureGuardian`, `SymbolicShortcut` (системные сочетания: Spotlight, рабочие столы, окна приложения).
   - Инфраструктура: `HIDTransport` (IOHIDManager).
   - UI: `LogiMouseControlApp`, `MainView`, `MouseIllustration`, `RingActionIcon`, `ArtworkPreview`.
   - Ресурсы: `DeviceImages/`.
 - `Tests/MouseCoreTests/`: исполняемый target `MouseCoreChecks` с самописными проверками, не XCTest.
-- `Tests/SpotlightShortcutChecks/`: изолированные проверки `SpotlightShortcut` на подставных зависимостях.
+- `Tests/SymbolicShortcutChecks/`: изолированные проверки `SymbolicShortcut` на подставных зависимостях.
 - `Resources/`: `Info.plist`, иконка, происхождение изображений.
 - `dist/`: собранный `.app` и архив релиза (в `.gitignore`).
 - `docs/specs/`: процесс SDD (`README.md`), архитектура, словарь, граф знаний, шаблоны (`templates/`), спецификации изменений (`changes/`) и ADR (`adr/`).

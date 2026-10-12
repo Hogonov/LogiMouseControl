@@ -17,6 +17,8 @@ final class AppModel: ObservableObject {
     @Published var activeProfileName = "Общий профиль"
     @Published var loginEnabled = SMAppService.mainApp.status == .enabled
     @Published var connectedSince: Date?
+    /// Last recognized gesture for on-screen confirmation; memory only, never saved (INV-3).
+    @Published var lastGesture: (direction: GestureDirection, action: MouseAction)?
     private let service = DeviceService()
     private let scroll = ScrollEngine()
     private let executor = ActionExecutor()
@@ -253,7 +255,13 @@ final class AppModel: ObservableObject {
                     else { executor.execute(action) }
                 }
                 for id in held.subtracting(next) {
-                    if let gesture = gestureState.removeValue(forKey: id) { executor.gesture(gesture.direction); service.pulse() }
+                    if let gesture = gestureState.removeValue(forKey: id) {
+                        let direction = gesture.direction
+                        let action = preferences.gestureActions(for: id)[direction]
+                        lastGesture = (direction, action)
+                        executor.execute(action)
+                        if action != .none { service.pulse() }
+                    }
                 }
                 held = next
             } else if event.function == 1, event.payload.count >= 4 {
