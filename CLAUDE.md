@@ -24,6 +24,7 @@
 
 - Тесты: `./scripts/test.sh`
 - Сборка release `.app` с подписью: `./scripts/build.sh` (debug: `./scripts/build.sh debug`). Нужен сертификат из `./scripts/setup-local-signing.sh`; сам этот скрипт не запускай, он меняет связку ключей.
+- Тесты хуков Claude Code (после правки `.claude/hooks/`): `.claude/hooks/test-hooks.sh`
 - Проверка вёрстки без мыши: `"dist/Logi Mouse Control.app/Contents/MacOS/LogiMouseControl" --render-artwork-preview <папка>`
 
 ## Соглашения
