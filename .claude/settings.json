@@ -1,4 +1,33 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(./scripts/test.sh)",
+      "Bash(.claude/hooks/test-hooks.sh)"
+    ],
+    "ask": [
+      "Bash(dangerouslyDisableSandbox:true)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Bash(osascript *)",
+      "Bash(cliclick *)",
+      "Bash(*setup-local-signing.sh*)",
+      "Bash(security *)",
+      "Bash(defaults write *)",
+      "Bash(defaults delete *)",
+      "Bash(defaults import *)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "credentials": {
+      "files": [
+        { "path": "~/.ssh", "mode": "deny" }
+      ]
+    }
+  },
   "hooks": {
     "PreToolUse": [
       {
