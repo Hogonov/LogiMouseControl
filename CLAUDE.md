@@ -27,7 +27,7 @@
 - Сборка release `.app` с подписью: `./scripts/build.sh` (debug: `./scripts/build.sh debug`). Нужен сертификат из `./scripts/setup-local-signing.sh`; сам этот скрипт не запускай, он меняет связку ключей.
 - Тесты хуков Claude Code (после правки `.claude/hooks/`): `.claude/hooks/test-hooks.sh`
 - Проверка вёрстки без мыши: `"dist/Logi Mouse Control.app/Contents/MacOS/LogiMouseControl" --render-artwork-preview <папка>`
-- Скилы: `/build-debug` — отладочная сборка в `.build/`; `/preview-ui [что смотреть]` — сборка, PNG предпросмотра в `.build/preview/` и их просмотр; `/verify` — все автоматические проверки сразу. Swift-сборке нужен запуск вне песочницы агента.
+- Скилы: `/build-debug` — отладочная сборка в `.build/`; `/preview-ui [что смотреть]` — сборка, PNG предпросмотра в `.build/preview/` и их просмотр; `/verify` — все автоматические проверки сразу. Swift сохраняет файлы через системную временную папку `/private/var/folders/…/T/TemporaryItems`; чтобы сборка шла в песочнице агента, эта папка разрешена в `sandbox.filesystem.allowWrite` личного `.claude/settings.local.json` (путь свой на каждом Mac: `getconf DARWIN_USER_TEMP_DIR`).
 
 ## Соглашения
 
