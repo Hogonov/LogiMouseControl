@@ -8,6 +8,7 @@
 name: five-whys
 description: Finds the root cause of a bug, failure or recurring problem by asking "why" until the answer is a cause you can fix. Use when the user asks why something keeps happening, or wants the root cause rather than a quick fix.
 argument-hint: "[problem]"
+effort: high
 ---
 
 Find the root cause of this problem: $ARGUMENTS
