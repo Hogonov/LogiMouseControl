@@ -18,6 +18,7 @@
 - `Tests/SpotlightShortcutChecks/`: изолированные проверки `SpotlightShortcut` на подставных зависимостях.
 - `Resources/`: `Info.plist`, иконка, происхождение изображений.
 - `dist/`: собранный `.app` и архив релиза (в `.gitignore`).
+- `docs/specs/`: процесс SDD (`README.md`), архитектура, словарь, граф знаний, шаблоны (`templates/`), спецификации изменений (`changes/`) и ADR (`adr/`).
 - `.agents/skills/`: скиллы других агентов (`skills-lock.json`); Claude Code их не загружает.
 
 ## Команды

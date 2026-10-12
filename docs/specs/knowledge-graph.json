@@ -1,8 +1,11 @@
 {
   "metadata": {
     "spec_id": "project-init",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "created": "2026-09-22",
+    "updated": "2026-10-12",
+    "updatedBy": "CH-0001",
+    "verifiedAgainstCommit": "ef48295",
     "project": "LogiMouseControl",
     "type": "initial-discovery"
   },
@@ -10,14 +13,17 @@
     "workingDirectory": "/Users/alexandr/Documents/Projects/self/LogiMouseControl",
     "projectName": "LogiMouseControl",
     "product": "Native macOS control application for Logitech MX Master 4 over Bluetooth",
-    "minimumPlatform": "macOS 14"
+    "minimumPlatform": "macOS 14",
+    "appVersion": "0.1.0",
+    "bundleIdentifier": "local.alexandr.LogiMouseControl",
+    "hardwareStatus": "No hardware behavior is confirmed on the physical mouse; see docs/HARDWARE_VALIDATION.md"
   },
   "stack": {
     "primaryLanguage": "Swift 5.9",
     "framework": "SwiftUI with AppKit, IOKit HID, CoreGraphics and ServiceManagement",
     "buildSystem": "Swift Package Manager with project shell scripts",
     "runtimeDependencies": [],
-    "persistence": "UserDefaults with Codable preferences"
+    "persistence": "UserDefaults with Codable preferences under key preferences.v1"
   },
   "conventions": {
     "folderStructure": [
@@ -28,26 +34,35 @@
       "Tests/SpotlightShortcutChecks",
       "Resources",
       "scripts",
-      "docs"
+      "docs",
+      "docs/specs",
+      "docs/specs/templates",
+      "docs/specs/changes",
+      "docs/specs/adr"
     ],
     "namingPatterns": [
       "PascalCase Swift types",
       "camelCase properties and functions",
       "one primary responsibility per source file",
       "domain values represented by named enums and structs",
-      "localized user-facing text in Russian"
+      "localized user-facing text in Russian",
+      "@ViewState alias instead of @State in views"
     ],
     "configFiles": [
       "Package.swift",
       "Resources/Info.plist",
       ".gitignore",
-      "AGENTS.md"
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".claude/settings.json"
     ],
-    "testingPattern": "Executable checks built from pure MouseCore logic plus fake-dependent Spotlight regression checks; no automated physical mouse input or assigned actions",
+    "testingPattern": "Executable checks built from pure MouseCore logic (MouseCoreChecks, 22 checks) plus fake-dependent Spotlight regression checks (SpotlightShortcutChecks, 8 checks); no XCTest; no automated physical mouse input or assigned actions",
     "verificationCommands": [
       "./scripts/test.sh",
+      "swift build --disable-sandbox --scratch-path .build --product LogiMouseControl",
       "./scripts/build.sh",
-      "git diff --check"
+      "git diff --check",
+      "python3 -m json.tool docs/specs/knowledge-graph.json"
     ]
   },
   "architecture": {
@@ -59,13 +74,44 @@
       "IOKit and macOS infrastructure adapters",
       "MouseCore protocol and pure domain logic"
     ],
+    "targets": [
+      {
+        "name": "MouseCore",
+        "type": "library",
+        "path": "Sources/MouseCore",
+        "dependsOn": ["Foundation"]
+      },
+      {
+        "name": "LogiMouseControl",
+        "type": "executable",
+        "path": "Sources/LogiMouseControl",
+        "dependsOn": ["MouseCore", "AppKit", "IOKit", "ApplicationServices", "ServiceManagement"],
+        "resources": ["DeviceImages"]
+      },
+      {
+        "name": "MouseCoreChecks",
+        "type": "executable",
+        "path": "Tests/MouseCoreTests",
+        "dependsOn": ["MouseCore"]
+      },
+      {
+        "name": "SpotlightShortcutChecks",
+        "type": "swiftc outside SwiftPM",
+        "path": "Tests/SpotlightShortcutChecks",
+        "dependsOn": ["Sources/LogiMouseControl/SpotlightShortcut.swift"],
+        "builtBy": "scripts/test.sh"
+      }
+    ],
     "modules": [
       {
         "name": "MouseCore",
         "responsibilities": [
           "HID++ packet model and response matching",
+          "HID++ failure model",
+          "control reporting flags",
           "preferences and action models",
           "time-based scroll integration",
+          "gesture accumulation",
           "device artwork metadata"
         ]
       },
@@ -75,7 +121,8 @@
           "application lifecycle and UI",
           "device discovery and configuration",
           "macOS event generation",
-          "capture recovery and system integration"
+          "capture recovery and system integration",
+          "diagnostic and artwork preview command-line modes"
         ]
       }
     ],
@@ -88,18 +135,28 @@
       "in-memory crash recovery guardian",
       "profile override with general fallback",
       "pure core logic isolated from platform UI"
-    ]
+    ],
+    "threading": {
+      "main": ["AppModel", "views", "ScrollEngine", "ActionExecutor", "SpotlightShortcut", "RingController", "IOKit callbacks"],
+      "local.logimouse.hardware": ["DeviceService state", "HIDTransport.request", "CaptureGuardian"],
+      "mainActorAnnotated": false
+    },
+    "commandLineModes": ["--diagnose", "--render-artwork-preview <directory>", "--recover-on-exit"]
   },
   "domain": {
     "primaryEntities": [
       "DeviceSnapshot",
       "MouseControl",
       "HIDPacket",
+      "HIDFailure",
       "Preferences",
       "ScrollPreferences",
       "AppProfile",
       "MouseAction",
       "RingAction",
+      "RingApplication",
+      "WheelMode",
+      "GestureAccumulator",
       "CaptureRecovery"
     ],
     "services": [
@@ -112,11 +169,17 @@
       "CaptureGuardian",
       "SpotlightShortcut"
     ],
+    "stateKinds": {
+      "desired": "HardwareView @ViewState before apply",
+      "saved": "Preferences.desired* after confirmed write; Preferences.buttons and scroll immediately",
+      "confirmed": "DeviceSnapshot for hardware settings; AppModel.appliedScroll, appliedButtons, eventButtons for capture"
+    },
     "externalBoundaries": [
       "Logitech MX Master 4 Bluetooth HID++ interface",
       "macOS Accessibility and Input Monitoring",
       "NSWorkspace and symbolic hotkeys",
       "UserDefaults",
+      "SMAppService login item",
       "local application bundle resources"
     ]
   },
@@ -126,13 +189,40 @@
     "Do not persist serial numbers, Bluetooth addresses or activity history",
     "Do not claim hardware behavior is verified before user device testing",
     "Do not enable unsupported control flags or capabilities",
-    "Do not add network or telemetry behavior without an explicit architecture decision"
+    "Do not add network or telemetry behavior without an explicit architecture decision",
+    "Keep previously saved preferences.v1 decodable",
+    "Do not change bundle identifier, signing identifier or certificate without an ADR"
   ],
+  "invariants": {
+    "source": "docs/specs/architecture.md#неприкосновенные-правила",
+    "ids": ["INV-1", "INV-2", "INV-3", "INV-4", "INV-5", "INV-6", "INV-7", "INV-8", "INV-9", "INV-10", "INV-11", "INV-12", "INV-13", "INV-14", "INV-15", "INV-16"]
+  },
+  "knownIssues": {
+    "source": "docs/specs/architecture.md",
+    "discrepancies": ["D-01", "D-02", "D-03", "D-04", "D-05", "D-06", "D-07", "D-08", "D-09", "D-10"],
+    "unknowns": ["U-01", "U-02", "U-03", "U-04", "U-05", "U-06", "U-07", "U-08", "U-09", "U-10"],
+    "proposals": ["P-01", "P-02", "P-03", "P-04", "P-05", "P-06", "P-07"]
+  },
+  "process": {
+    "description": "docs/specs/README.md",
+    "stages": ["request", "specification", "technical plan", "tasks", "implementation", "acceptance verification", "documentation update"],
+    "paths": {
+      "short": "docs/specs/templates/spec-short.md",
+      "full": ["docs/specs/templates/spec.md", "docs/specs/templates/plan.md", "docs/specs/templates/report.md"],
+      "adr": "docs/specs/templates/adr.md"
+    },
+    "identifiers": ["CH-NNNN", "R-NN", "AC-NN", "T-NN", "V-NN", "M-NN", "INV-N", "ADR-NNNN", "D-NN", "U-NN", "P-NN"],
+    "changes": ["docs/specs/changes/0001-sdd-adoption/spec.md"],
+    "adrs": ["docs/specs/adr/0001-sdd-process-and-structure.md"]
+  },
   "references": {
     "constitution": "docs/specs/architecture.md",
     "ontology": "docs/specs/ontology.md",
+    "process": "docs/specs/README.md",
     "readme": "README.md",
-    "hardwareValidation": "docs/HARDWARE_VALIDATION.md"
+    "agentRules": "AGENTS.md",
+    "hardwareValidation": "docs/HARDWARE_VALIDATION.md",
+    "thirdPartyNotices": "THIRD_PARTY_NOTICES.md"
   },
-  "source": "sdd-init"
+  "source": "sdd-init; updated by CH-0001"
 }
