@@ -7,3 +7,20 @@ dist/
 # Claude Code worktrees
 .claude/worktrees/
 .claude/settings.local.json
+
+# Secrets and local environment (keep .env.example as a template without secrets)
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_ed25519
+id_ecdsa
+
+# Logs
+*.log

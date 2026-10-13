@@ -3,14 +3,14 @@
     "spec_id": "project-init",
     "version": "2.0.0",
     "created": "2026-09-22",
-    "updated": "2026-10-12",
-    "updatedBy": "CH-0004",
+    "updated": "2026-10-13",
+    "updatedBy": "CH-0006",
     "verifiedAgainstCommit": "ef48295",
     "project": "LogiMouseControl",
     "type": "initial-discovery"
   },
   "context": {
-    "workingDirectory": "/Users/alexandr/Documents/Projects/self/LogiMouseControl",
+    "workingDirectory": ".",
     "projectName": "LogiMouseControl",
     "product": "Native macOS control application for Logitech MX Master 4 over Bluetooth",
     "minimumPlatform": "macOS 14",
