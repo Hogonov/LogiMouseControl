@@ -125,7 +125,7 @@ R-… (spec.md) → AC-… (spec.md) → T-… (plan.md) → V-… / M-… (spec
 | [CH-0004](changes/0004-accent-color/spec.md) | Акцентный цвет в настройках и обновлённая палитра | полный | реализовано |
 | [CH-0005](changes/0005-sidebar-hit-area/spec.md) | Кликабельная область пунктов боковой панели | краткий | реализовано |
 | [CH-0006](changes/0006-repo-secret-hygiene/spec.md) | Защита репозитория от случайной публикации конфиденциальных данных | краткий | реализовано |
-| [CH-0007](changes/0007-responsive-mission-control/spec.md) | Mission Control с первого нажатия во время перехода между столами | полный | готово к реализации |
+| [CH-0007](changes/0007-responsive-mission-control/spec.md) | Mission Control с первого нажатия во время перехода между столами | полный | реализовано — ждёт проверки пользователем |
 
 ### ADR
 

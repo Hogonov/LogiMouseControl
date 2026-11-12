@@ -4,7 +4,7 @@
     "version": "2.0.0",
     "created": "2026-09-22",
     "updated": "2026-11-12",
-    "updatedBy": "CH-0007 planning only",
+    "updatedBy": "CH-0007 implementation",
     "verifiedAgainstCommit": "ef48295",
     "project": "LogiMouseControl",
     "type": "initial-discovery"
@@ -32,6 +32,7 @@
       "Sources/LogiMouseControl/DeviceImages",
       "Tests/MouseCoreTests",
       "Tests/SymbolicShortcutChecks",
+      "Tests/DockGestureChecks",
       "Resources",
       "scripts",
       "docs",
@@ -56,7 +57,7 @@
       "CLAUDE.md",
       ".claude/settings.json"
     ],
-    "testingPattern": "Executable checks built from pure MouseCore logic (MouseCoreChecks, 35 checks) plus fake-dependent symbolic-hotkey regression checks (SymbolicShortcutChecks, 13 checks); no XCTest; no automated physical mouse input or assigned actions",
+    "testingPattern": "Executable checks built from pure MouseCore logic (MouseCoreChecks, 38 checks) plus fake-dependent symbolic-hotkey regression checks (SymbolicShortcutChecks, 13 checks) and DockGestureChecks with fake effects; no XCTest; no automated physical mouse input or assigned actions",
     "verificationCommands": [
       "./scripts/test.sh",
       "swift build --disable-sandbox --scratch-path .build --product LogiMouseControl",
@@ -95,6 +96,13 @@
         "dependsOn": ["MouseCore"]
       },
       {
+        "name": "DockGestureChecks",
+        "type": "swiftc outside SwiftPM",
+        "path": "Tests/DockGestureChecks",
+        "dependsOn": ["MouseCore", "DockGestureController", "DockSwipe", "ActionExecutor"],
+        "builtBy": "scripts/test.sh"
+      },
+      {
         "name": "SymbolicShortcutChecks",
         "type": "swiftc outside SwiftPM",
         "path": "Tests/SymbolicShortcutChecks",
@@ -112,6 +120,7 @@
           "preferences and action models",
           "time-based scroll integration",
           "gesture accumulation",
+          "Mission Control impulse and gesture input transitions",
           "smooth desktop swipe math (SpaceSwipe, GestureSession)",
           "device artwork metadata"
         ]
@@ -139,7 +148,7 @@
       "pure core logic isolated from platform UI"
     ],
     "threading": {
-      "main": ["AppModel", "views", "ScrollEngine", "ActionExecutor", "SymbolicShortcut", "DockSwipe", "RingController", "IOKit callbacks"],
+      "main": ["AppModel", "views", "ScrollEngine", "ActionExecutor", "SymbolicShortcut", "DockSwipe", "DockGestureController", "RingController", "IOKit callbacks"],
       "local.logimouse.hardware": ["DeviceService state", "HIDTransport.request", "CaptureGuardian"],
       "mainActorAnnotated": false
     },
@@ -165,6 +174,11 @@
       "GestureSession",
       "SpaceSwipe",
       "SwipeStep",
+      "DockGestureAxis",
+      "DockGestureFrame",
+      "MissionControlGesture",
+      "ButtonTransitions",
+      "GestureInputState",
       "CaptureRecovery"
     ],
     "services": [
@@ -176,7 +190,8 @@
       "RingController",
       "CaptureGuardian",
       "SymbolicShortcut",
-      "DockSwipe"
+      "DockSwipe",
+      "DockGestureController"
     ],
     "stateKinds": {
       "desired": "HardwareView @ViewState before apply",
@@ -225,35 +240,13 @@
     "changes": ["docs/specs/changes/0001-sdd-adoption/spec.md", "docs/specs/changes/0002-configurable-gestures/spec.md", "docs/specs/changes/0003-smooth-desktop-swipe/spec.md", "docs/specs/changes/0004-accent-color/spec.md", "docs/specs/changes/0005-sidebar-hit-area/spec.md", "docs/specs/changes/0006-repo-secret-hygiene/spec.md", "docs/specs/changes/0007-responsive-mission-control/spec.md"],
     "adrs": ["docs/specs/adr/0001-sdd-process-and-structure.md", "docs/specs/adr/0002-dock-swipe-synthesis.md", "docs/specs/adr/0003-mission-control-dock-gesture.md"]
   },
-  "plannedChanges": {
+  "implementedChanges": {
     "CH-0007": {
-      "status": "ready-for-implementation",
-      "implemented": false,
+      "status": "implemented-awaiting-user-validation",
       "spec": "docs/specs/changes/0007-responsive-mission-control/spec.md",
       "plan": "docs/specs/changes/0007-responsive-mission-control/plan.md",
       "report": "docs/specs/changes/0007-responsive-mission-control/report.md",
-      "adr": "docs/specs/adr/0003-mission-control-dock-gesture.md",
-      "proposedCoreTypes": [
-        "DockGestureAxis",
-        "DockGestureFrame",
-        "MissionControlGesture",
-        "ButtonTransitions",
-        "GestureInputState"
-      ],
-      "proposedServices": [
-        "DockGestureController"
-      ],
-      "proposedChecks": [
-        "DockGestureChecks"
-      ],
-      "existingComponentsToChange": [
-        "DockSwipe",
-        "ActionExecutor",
-        "AppModel"
-      ],
-      "invariantToExtend": "INV-16",
-      "hardwareAcceptance": "CH-0007/M-01 through M-08; unverified; only user may run",
-      "note": "Planning metadata only. Existing architecture/services/targets above still describe current code."
+      "hardwareAcceptance": "CH-0007/M-01 through M-08; unverified; only user may run"
     }
   },
   "references": {

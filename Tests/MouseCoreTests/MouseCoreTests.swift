@@ -330,6 +330,53 @@ final class MouseCoreTests {
             XCTAssertTrue((accent.relativeLuminance + 0.05) / 0.05 >= 7)
         }
     }
+    func testMissionControlTimingAndCancellation() {
+        var gesture = MissionControlGesture()
+        XCTAssertEqual(gesture.start(at: 0), [SwipeStep(.began, progress: 0)])
+        XCTAssertEqual(gesture.advance(at: 0.008).first?.phase, .changed)
+        XCTAssertEqual(gesture.advance(at: 0.080).count, 1)
+        let end = gesture.advance(at: 0.120)
+        XCTAssertEqual(end.map(\.phase), [.changed, .ended])
+        XCTAssertTrue(gesture.advance(at: 0.2).isEmpty)
+        XCTAssertEqual(gesture.start(at: 1).count, 1)
+        XCTAssertEqual(gesture.advance(at: 1.251).first?.phase, .cancelled)
+        XCTAssertTrue(gesture.cancel().isEmpty)
+        XCTAssertEqual(gesture.start(at: 2).count, 1)
+        XCTAssertTrue(gesture.advance(at: 1).isEmpty)
+        XCTAssertEqual(gesture.advance(at: .nan).first?.phase, .cancelled)
+        var bad = MissionControlGesture.Configuration(); bad.frameInterval = 0
+        XCTAssertTrue(bad.intervalCount == nil)
+        bad = MissionControlGesture.Configuration(); bad.targetProgress = .greatestFiniteMagnitude
+        XCTAssertTrue(bad.intervalCount == nil)
+    }
+    func testGestureInputTransitionsAndSuppression() {
+        let transitions = ButtonTransitions(previous: [3, 1], next: [2])
+        XCTAssertEqual(transitions.released, [1, 3]); XCTAssertEqual(transitions.pressed, [2])
+        var input = GestureInputState()
+        input.begin(1, session: GestureSession(discardFirst: false, swipeSign: 1, countsPerSpace: 800))
+        input.updateHeld([1], released: [])
+        XCTAssertFalse(input.move(dx: 200, dy: 0, at: 1).isEmpty)
+        let interrupted = input.finishHorizontalForMissionControl(at: 1.01, held: [1])
+        XCTAssertEqual(interrupted.count, 1)
+        XCTAssertTrue(input.move(dx: 200, dy: 0, at: 1.02).isEmpty)
+        XCTAssertTrue(input.collectReleases([1], at: 1.03).isEmpty)
+        input.updateHeld([], released: [1])
+        input.begin(1, session: GestureSession(discardFirst: false, swipeSign: 1, countsPerSpace: 800))
+        XCTAssertEqual(input.collectReleases([1], at: 1.1).count, 1)
+    }
+
+    func testAllReleasedOutcomesAreCollectedInOrder() {
+        var input = GestureInputState()
+        input.begin(3, session: GestureSession(discardFirst: false, swipeSign: 1, countsPerSpace: 800))
+        _ = input.move(dx: 200, dy: 0, at: 1)
+        input.begin(1, session: GestureSession(discardFirst: false, swipeSign: nil, countsPerSpace: 800))
+        input.updateHeld([1, 3], released: [])
+        let outcomes = input.collectReleases([3, 1], at: 1.1)
+        XCTAssertEqual(outcomes.map { $0.0 }, [1, 3])
+        guard case .action = outcomes[0].1, case .swipe = outcomes[1].1 else { return XCTFail("outcomes") }
+        XCTAssertTrue(input.collectReleases([1, 3], at: 1.1).isEmpty)
+    }
+
 }
 
 private func XCTAssertEqual<T: Equatable>(_ actual: T, _ expected: T, file: StaticString = #filePath, line: UInt = #line) { precondition(actual == expected, "Expected \(expected), got \(actual)", file: (file), line: line) }
@@ -380,6 +427,9 @@ private func XCTUnwrap<T>(_ value: T?) throws -> T { guard let value else { thro
         try suite.testLegacyPreferencesWithoutAccentUseMint(); print("PASS testLegacyPreferencesWithoutAccentUseMint")
         try suite.testAccentRoundTripAndUnknownValueKeepsSettings(); print("PASS testAccentRoundTripAndUnknownValueKeepsSettings")
         suite.testAccentPaletteIsReadableWithBlackText(); print("PASS testAccentPaletteIsReadableWithBlackText")
-        print("35 checks passed")
+        suite.testMissionControlTimingAndCancellation(); print("PASS testMissionControlTimingAndCancellation")
+        suite.testGestureInputTransitionsAndSuppression(); print("PASS testGestureInputTransitionsAndSuppression")
+        suite.testAllReleasedOutcomesAreCollectedInOrder(); print("PASS testAllReleasedOutcomesAreCollectedInOrder")
+        print("38 checks passed")
     }
 }

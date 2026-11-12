@@ -63,7 +63,7 @@ Mac Mouse Fix was studied as a behavioral reference for smooth scrolling.
 For smooth desktop swipes, `Helper/Core/Touch/TouchSimulator.m` at revision
 `f92d2d53a` was read only for facts about the Dock swipe event format
 (cumulative progress, end versus cancel phase); no code was copied.
-Its source is under the custom MMF License. No MMF source files, assets,
+For CH-0007, `TouchSimulator.h` and `TouchSimulator.m` at revision `f47dc47db972af9a2f8c28ffe52ab1eef785988e` were consulted for vertical and horizontal motion values and event format; no source code was copied. Its source is under the custom MMF License. No MMF source files, assets,
 algorithms, private API bridges, monetization or update components are copied
 into this application. The time-based exponential scroll integrator is an
 independent implementation using public CoreGraphics events.

@@ -31,8 +31,24 @@ final class AppModel: ObservableObject {
     private var captureDirty = false
     private var shuttingDown = false
     private var sleeping = false
-    private var held: Set<UInt16> = []
-    private var gestureState: [UInt16: GestureSession] = [:]
+    private var gestureInput = GestureInputState()
+    private var snapshotHeld: Set<UInt16>?
+    private lazy var dockGestures = DockGestureController(
+        now: { ProcessInfo.processInfo.systemUptime },
+        schedule: { delay, callback in
+            let item = DispatchWorkItem(block: callback)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
+            return { item.cancel() }
+        },
+        allowed: { [weak self] in
+            guard let self else { return false }
+            return AXIsProcessTrusted() && !self.paused && !self.sleeping && !self.shuttingDown && self.conflicts.isEmpty
+        },
+        prepare: { [weak self] config in self?.swipe.prepareMissionControl(config) },
+        finishHorizontal: { [weak self] in self?.finishHorizontalForMissionControl() },
+        legacy: { [weak self] in self?.executor.openMissionControlLegacy() },
+        error: { [weak self] in self?.error = $0 }
+    )
     private var startup = true
     private var watchdogTick = 0
     private var eventButtons: [String: MouseAction] = [:]
@@ -51,7 +67,7 @@ final class AppModel: ObservableObject {
         service.onError = { [weak self] message in self?.error = message }
         service.onDisconnected = { [weak self] in
             guard let self else { return }
-            self.active = false; self.scroll.stop(); self.ring.close(); self.held = []; self.cancelGestures()
+            self.stopGestureInput(); self.active = false; self.scroll.stop(); self.ring.close()
             self.appliedScroll = nil; self.appliedButtons = [:]
             self.connectedSince = nil; self.status = "Ожидаем подключения MX Master 4"
         }
@@ -60,6 +76,8 @@ final class AppModel: ObservableObject {
         scroll.onFailure = { [weak self] in self?.pause() }
         executor.onError = { [weak self] in self?.error = $0 }
         executor.showRing = { [weak self] in self?.showRing() }
+        executor.requestMissionControl = { [weak self] in self?.dockGestures.request() }
+        executor.willExecuteDockAction = { [weak self] in self?.dockGestures.cancel() }
         frontmostID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""
         let center = NSWorkspace.shared.notificationCenter
         workspaceObservers.append(center.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
@@ -69,7 +87,7 @@ final class AppModel: ObservableObject {
         })
         for name in [NSWorkspace.willSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
             workspaceObservers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                guard let self else { return }; self.sleeping = true; self.active = false; self.scroll.stop(); self.ring.close(); self.configure()
+                guard let self else { return }; self.stopGestureInput(); self.sleeping = true; self.active = false; self.scroll.stop(); self.ring.close(); self.configure()
             })
         }
         for name in [NSWorkspace.didWakeNotification, NSWorkspace.sessionDidBecomeActiveNotification] {
@@ -153,14 +171,15 @@ final class AppModel: ObservableObject {
     private func openPrivacy(_ pane: String) { if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") { NSWorkspace.shared.open(url) } }
     func configure() {
         guard !shuttingDown else { return }
+        let unchanged = canControl && active && appliedScroll == effectiveScroll.enabled && appliedButtons == effectiveButtons
+        if !unchanged { stopGestureInput() }
         if captureBusy { captureDirty = true; return }
         scroll.stop()
         scroll.preferences = effectiveScroll
         activeProfileName = preferences.profiles.first { $0.id == frontmostID }?.name ?? "Общий профиль"
-        guard device.connected else { held = []; cancelGestures(); return }
+        guard device.connected else { return }
         // Unchanged capture keeps held controls: switching desktops activates other apps mid-gesture.
-        if canControl && active && appliedScroll == effectiveScroll.enabled && appliedButtons == effectiveButtons { return }
-        held = []; cancelGestures()
+        if unchanged { return }
         captureBusy = true
         if canControl {
             let buttons = effectiveButtons
@@ -183,8 +202,8 @@ final class AppModel: ObservableObject {
             }
         }
     }
-    func pause() { paused = true; scroll.stop(); ring.close(); configure() }
-    func togglePause() { paused.toggle(); configure() }
+    func pause() { stopGestureInput(); paused = true; scroll.stop(); ring.close(); configure() }
+    func togglePause() { if !paused { stopGestureInput() }; paused.toggle(); configure() }
     func setDPI(_ value: Int) {
         guard conflicts.isEmpty else { return }; busy = true
         service.setDPI(value) { [weak self] success in
@@ -213,7 +232,7 @@ final class AppModel: ObservableObject {
         ring.show(actions: preferences.ring, accent: preferences.accent, execute: { [weak self] action in self?.executor.execute(action); self?.service.pulse() }, pulse: { [weak self] in self?.service.pulse(4) })
     }
     func switchHost(_ host: Int) {
-        active = false; scroll.stop(); ring.close()
+        stopGestureInput(); active = false; scroll.stop(); ring.close()
         service.switchHost(host) { [weak self] success in if !success { self?.configure() } }
     }
     func setLogin(_ enabled: Bool) {
@@ -253,51 +272,61 @@ final class AppModel: ObservableObject {
         } else if event.feature == device.features[0x1b04] {
             if event.function == 0, event.payload.count >= 8 {
                 let next = Set(stride(from: 0, to: 8, by: 2).map { word(event.payload, $0) }.filter { $0 != 0 })
-                for id in next.subtracting(held) {
-                    scroll.stop()
-                    let action = eventButtons[String(id)] ?? .system
-                    if action == .gestures {
-                        let sign = swipe.isAvailable ? preferences.gestureActions(for: id).desktopSwipeSign : nil
-                        gestureState[id] = GestureSession(discardFirst: id == 0x1a0, swipeSign: sign, countsPerSpace: SpaceSwipe.countsPerSpace(dpi: device.dpi))
-                    } else { executor.execute(action) }
-                }
-                for id in held.subtracting(next) {
-                    guard var gesture = gestureState.removeValue(forKey: id) else { continue }
-                    switch gesture.release(at: ProcessInfo.processInfo.systemUptime) {
-                    case .action(let direction):
-                        let action = preferences.gestureActions(for: id)[direction]
-                        lastGesture = (direction, action)
-                        executor.execute(action)
-                        if action != .none { service.pulse() }
-                    case .swipe(let steps, let direction):
+                let transitions = gestureInput.transitions(to: next)
+                snapshotHeld = next
+                let released = gestureInput.collectReleases(transitions.released, at: ProcessInfo.processInfo.systemUptime)
+                for (id, outcome) in released {
+                    if case .swipe(let steps, let direction) = outcome {
                         lastGesture = (direction, preferences.gestureActions(for: id)[direction])
                         post(steps)
                     }
                 }
-                held = next
+                for (id, outcome) in released {
+                    if case .action(let direction) = outcome {
+                        let action = preferences.gestureActions(for: id)[direction]
+                        lastGesture = (direction, action)
+                        executor.execute(action)
+                        if action != .none { service.pulse() }
+                    }
+                }
+                for id in transitions.pressed {
+                    scroll.stop()
+                    let action = eventButtons[String(id)] ?? .system
+                    if action == .gestures {
+                        let sign = swipe.isAvailable ? preferences.gestureActions(for: id).desktopSwipeSign : nil
+                        gestureInput.begin(id, session: GestureSession(discardFirst: id == 0x1a0, swipeSign: sign, countsPerSpace: SpaceSwipe.countsPerSpace(dpi: device.dpi)))
+                    } else { executor.execute(action) }
+                }
+                gestureInput.updateHeld(next, released: transitions.released)
+                snapshotHeld = nil
             } else if event.function == 1, event.payload.count >= 4 {
                 let now = ProcessInfo.processInfo.systemUptime
-                for id in Array(gestureState.keys) {
-                    // Only one control drives the Dock at a time.
-                    let allowSwipe = !gestureState.contains { $0.key != id && $0.value.isSwiping }
-                    if let steps = gestureState[id]?.add(dx: Double(signedWord(event.payload)), dy: Double(signedWord(event.payload, 2)), at: now, allowSwipe: allowSwipe) { post(steps) }
-                }
+                post(gestureInput.move(dx: Double(signedWord(event.payload)), dy: Double(signedWord(event.payload, 2)), at: now))
             }
         }
     }
     private func post(_ steps: [SwipeStep]) {
         for step in steps {
-            swipe.post(step)
+            dockGestures.postHorizontal(step) { [swipe] in swipe.post($0) }
             if step.phase == .ended { service.pulse() }
         }
     }
-    /// A started Dock swipe must always end, or the desktop stays mid-transition (INV-16).
-    private func cancelGestures() {
-        for id in Array(gestureState.keys) { if let steps = gestureState[id]?.cancel() { post(steps) } }
-        gestureState = [:]
+    private func finishHorizontalForMissionControl() {
+        let outcomes = gestureInput.finishHorizontalForMissionControl(at: ProcessInfo.processInfo.systemUptime, held: snapshotHeld ?? gestureInput.held)
+        for (id, outcome) in outcomes {
+            if case .swipe(let steps, let direction) = outcome {
+                lastGesture = (direction, preferences.gestureActions(for: id)[direction])
+                post(steps)
+            }
+        }
+    }
+    private func stopGestureInput() {
+        dockGestures.cancel(sendTerminal: inputMonitoring && accessibility)
+        let steps = gestureInput.clear()
+        if inputMonitoring && accessibility { post(steps) }
     }
     func shutdown(_ completion: @escaping () -> Void) {
-        shuttingDown = true; active = false; monitor?.invalidate(); scroll.stop(); ring.close(); cancelGestures()
+        stopGestureInput(); shuttingDown = true; active = false; monitor?.invalidate(); scroll.stop(); ring.close()
         executor.cancelPendingActions()
         service.release { [weak self] success in
             guard let self else { completion(); return }
