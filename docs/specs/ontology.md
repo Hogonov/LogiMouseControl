@@ -95,6 +95,19 @@
 | Watchdog | Проверка каждые 2 с: разрешения, конфликты, переподключение, доступность помощника; раз в 60 с перечитывание устройства. | `AppModel.watchdog()` |
 | Application identity | Bundle ID и идентификатор подписи `local.alexandr.LogiMouseControl` плюс постоянный сертификат; по ним macOS хранит разрешения. | `Resources/Info.plist`, `scripts/build.sh` |
 
+## Планируемые термины CH-0007 — ещё не реализованы
+
+Эти термины описывают [план](changes/0007-responsive-mission-control/plan.md), а не текущие классы приложения. После реализации перенести в соответствующие фактические разделы и сверить имена символов.
+
+| Термин | Предлагаемое значение | Планируемый символ |
+|---|---|---|
+| Mission Control gesture pulse | Короткая вертикальная последовательность began/changed/ended по одному запросу MC; начинается без ожидания анимации Space | `MissionControlGesture` |
+| Dock gesture controller | Единственный координатор вертикальных кадров и их пересечения с горизонтальными свайпами; состояние на main | `DockGestureController` |
+| Prepared sequence | Полностью подготовленные события и варианты отмены до первой отправки; подготовка не подтверждает принятие системой | адаптер `DockSwipe` |
+| Gesture generation | Идентификатор текущей последовательности; старые callbacks не могут отправлять события после отмены | `sessionID` |
+| Suppressed hold | Удерживаемый контрол, горизонтальный жест которого прерван MC; до фактического отпускания не создаёт новых действий | `GestureInputState.suppressedUntilRelease` |
+| Gesture input state | Чистое состояние held/сессий/подавленных удержаний, используемое AppModel и тестами | `GestureInputState`, `ButtonTransitions` |
+
 ## Термины процесса
 
 Подробно: [README.md](README.md).
