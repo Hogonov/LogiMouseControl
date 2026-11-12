@@ -125,7 +125,7 @@ R-… (spec.md) → AC-… (spec.md) → T-… (plan.md) → V-… / M-… (spec
 | [CH-0004](changes/0004-accent-color/spec.md) | Акцентный цвет в настройках и обновлённая палитра | полный | реализовано |
 | [CH-0005](changes/0005-sidebar-hit-area/spec.md) | Кликабельная область пунктов боковой панели | краткий | реализовано |
 | [CH-0006](changes/0006-repo-secret-hygiene/spec.md) | Защита репозитория от случайной публикации конфиденциальных данных | краткий | реализовано |
-| [CH-0007](changes/0007-responsive-mission-control/spec.md) | Mission Control с первого нажатия во время перехода между столами | полный | реализовано — ждёт проверки пользователем |
+| [CH-0007](changes/0007-responsive-mission-control/spec.md) | Mission Control с первого нажатия во время перехода между столами | полный | в работе — вертикаль отключена после неудачной проверки |
 
 ### ADR
 
@@ -133,6 +133,6 @@ R-… (spec.md) → AC-… (spec.md) → T-… (plan.md) → V-… / M-… (spec
 |---|---|---|
 | [ADR-0001](adr/0001-sdd-process-and-structure.md) | Двухуровневый процесс SDD и структура `docs/specs` | принято |
 | [ADR-0002](adr/0002-dock-swipe-synthesis.md) | Плавное переключение рабочих столов через синтезированный DockSwipe | принято |
-| [ADR-0003](adr/0003-mission-control-dock-gesture.md) | Mission Control через вертикальный DockSwipe | принято; не реализовано |
+| [ADR-0003](adr/0003-mission-control-dock-gesture.md) | Mission Control через вертикальный DockSwipe | принято; production-вертикаль временно отключена |
 
 Решения, принятые до введения ADR (отдельный процесс-помощник для восстановления, локальная подпись, отсутствие сети), описаны в `architecture.md` как факты и инварианты. Их причины в источниках подробно не записаны, поэтому ретроспективные ADR не создаются.

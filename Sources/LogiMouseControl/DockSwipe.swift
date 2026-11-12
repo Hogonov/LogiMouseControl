@@ -7,6 +7,9 @@ import MouseCore
 /// Private functions are resolved at runtime; nothing is written to defaults or
 /// system settings.
 final class DockSwipe {
+    // The vertical backend failed user validation (CH-0007/R-13).
+    // Keep requests on the legacy route until the gesture is validated on this OS.
+    private static let missionControlGesturesEnabled = false
     private struct Symbols {
         typealias Create = @convention(c) (CFAllocator?, UInt32, UInt64, UInt32) -> Unmanaged<CFTypeRef>?
         typealias SetInteger = @convention(c) (CFTypeRef, UInt32, Int) -> Void
@@ -50,7 +53,8 @@ final class DockSwipe {
 
     /// Allocates every possible vertical frame before the first event is sent.
     func prepareMissionControl(_ config: MissionControlGesture.Configuration) -> DockGestureController.Prepared? {
-        guard let count = config.intervalCount, symbols != nil else { return nil }
+        guard Self.missionControlGesturesEnabled,
+              let count = config.intervalCount, symbols != nil else { return nil }
         let sign = Self.verticalSign(natural: Self.naturalScrolling())
         var events: [String: CGEvent] = [:]
         for index in 0...count {

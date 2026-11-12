@@ -44,6 +44,7 @@ final class AppModel: ObservableObject {
             guard let self else { return false }
             return AXIsProcessTrusted() && !self.paused && !self.sleeping && !self.shuttingDown && self.conflicts.isEmpty
         },
+        canSendTerminal: { AXIsProcessTrusted() },
         prepare: { [weak self] config in self?.swipe.prepareMissionControl(config) },
         finishHorizontal: { [weak self] in self?.finishHorizontalForMissionControl() },
         legacy: { [weak self] in self?.executor.openMissionControlLegacy() },
@@ -321,9 +322,9 @@ final class AppModel: ObservableObject {
         }
     }
     private func stopGestureInput() {
-        dockGestures.cancel(sendTerminal: inputMonitoring && accessibility)
+        dockGestures.cancel()
         let steps = gestureInput.clear()
-        if inputMonitoring && accessibility { post(steps) }
+        if AXIsProcessTrusted() { post(steps) }
     }
     func shutdown(_ completion: @escaping () -> Void) {
         stopGestureInput(); shuttingDown = true; active = false; monitor?.invalidate(); scroll.stop(); ring.close()

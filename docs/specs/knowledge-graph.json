@@ -4,7 +4,7 @@
     "version": "2.0.0",
     "created": "2026-09-22",
     "updated": "2026-11-12",
-    "updatedBy": "CH-0007 implementation",
+    "updatedBy": "CH-0007 legacy recovery after failed user validation",
     "verifiedAgainstCommit": "ef48295",
     "project": "LogiMouseControl",
     "type": "initial-discovery"
@@ -242,11 +242,11 @@
   },
   "implementedChanges": {
     "CH-0007": {
-      "status": "implemented-awaiting-user-validation",
+      "status": "in-progress-vertical-backend-disabled",
       "spec": "docs/specs/changes/0007-responsive-mission-control/spec.md",
       "plan": "docs/specs/changes/0007-responsive-mission-control/plan.md",
       "report": "docs/specs/changes/0007-responsive-mission-control/report.md",
-      "hardwareAcceptance": "CH-0007/M-01 through M-08; unverified; only user may run"
+      "hardwareAcceptance": "User reports no Mission Control effect. Vertical backend disabled; M-09 legacy recovery awaits user; original responsiveness goal remains open"
     }
   },
   "references": {

@@ -101,9 +101,10 @@
 
 | Термин | Значение | Символ |
 |---|---|---|
-| Mission Control gesture pulse | Короткая вертикальная последовательность began/changed/ended по одному запросу MC; начинается без ожидания анимации Space | `MissionControlGesture` |
+| Mission Control gesture pulse | Экспериментальная короткая вертикальная последовательность began/changed/ended; отключена в production после неудачной пользовательской проверки | `MissionControlGesture` |
 | Dock gesture controller | Единственный координатор вертикальных кадров и их пересечения с горизонтальными свайпами; состояние на main | `DockGestureController` |
 | Prepared sequence | Полностью подготовленные события и варианты отмены до первой отправки; подготовка не подтверждает принятие системой | адаптер `DockSwipe` |
+| Terminal permission | Право завершить уже начатый жест по текущему Accessibility; независимо от допуска нового действия и Input Monitoring | `DockGestureController.canSendTerminal` |
 | Gesture generation | Идентификатор текущей последовательности; старые callbacks не могут отправлять события после отмены | `DockGestureController.generation` |
 | Suppressed hold | Удерживаемый контрол, горизонтальный жест которого прерван MC; до фактического отпускания не создаёт новых действий | `GestureInputState.suppressedUntilRelease` |
 | Gesture input state | Чистое состояние held/сессий/подавленных удержаний, используемое AppModel и тестами | `GestureInputState`, `ButtonTransitions` |
